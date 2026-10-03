@@ -1,0 +1,3103 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>재고 정리</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%93%A6%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" as="style" crossorigin
+  href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+<style>
+  :root{
+    --bg:#FFFFFF;
+    --ink:#16181B;
+    --ink-soft:#565A61;
+    --ink-faint:#9297A0;
+    --line:#E3E4E1;
+    --line-strong:#CBCDC8;
+    --accent:#1F6F54;
+    --accent-dark:#164F3C;
+    --accent-soft:#EAF3EF;
+    --gold:#C98A2E;
+    --gold-faint:#D9D9D4;
+    --danger:#B8433A;
+    --danger-soft:#FBEAE8;
+    --warn:#94590E;
+    --warn-soft:#FBF0DF;
+    --neutral-soft:#F1F1EF;
+    --surface:#FAFAF9;
+    --radius:6px;
+    --shadow:0 12px 32px rgba(22,24,27,.10);
+    --font:'Pretendard',-apple-system,BlinkMacSystemFont,'Malgun Gothic',sans-serif;
+  }
+  *{box-sizing:border-box;}
+  [hidden]{display:none !important;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:var(--font);
+    font-size:14px;
+    line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+  }
+  body.modal-open{overflow:hidden;}
+  #printArea{display:none;}
+  .app-shell{max-width:1040px;margin:0 auto;padding:28px 20px 80px;}
+  button{font-family:inherit;color:inherit;}
+  button:disabled{opacity:.35;cursor:default;}
+  button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+
+  /* ---------- Topbar ---------- */
+  .topbar{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;padding-bottom:20px;border-bottom:1px solid var(--line);}
+  .topbar-title h1{margin:0 0 4px;font-size:22px;font-weight:700;letter-spacing:-0.01em;}
+  .topbar-title p{margin:0;color:var(--ink-soft);font-size:13px;}
+  .save-indicator{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--ink-soft);white-space:nowrap;}
+  .save-indicator::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--accent);flex:none;}
+  .save-indicator.saving::before{background:var(--gold);}
+
+  /* ---------- Stats ---------- */
+  .stats{display:flex;flex-wrap:wrap;margin:22px 0;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;}
+  .stat{flex:1 1 50%;padding:14px 16px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);}
+  .stat:nth-child(2n){border-right:none;}
+  .stat:nth-child(3),.stat:nth-child(4){border-bottom:none;}
+  .stat-value{display:block;font-size:24px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-0.01em;}
+  .stat-label{display:block;margin-top:2px;font-size:12.5px;color:var(--ink-soft);}
+  .stat-value.warn{color:var(--danger);}
+  @media (min-width:640px){
+    .stat{flex:1 1 0;border-bottom:none;}
+    .stat:nth-child(1),.stat:nth-child(2),.stat:nth-child(3){border-right:1px solid var(--line);}
+    .stat:nth-child(4){border-right:none;}
+    .stat-value{font-size:26px;}
+  }
+
+  /* ---------- Toolbar ---------- */
+  .toolbar{margin-bottom:18px;}
+  .toolbar-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;align-items:center;}
+  .toolbar-row:last-child{margin-bottom:0;}
+  .toolbar-row .spacer{flex:1 1 auto;}
+  input[type="search"],input[type="text"],input[type="number"],select{
+    font-family:inherit;font-size:14px;padding:9px 11px;
+    border:1px solid var(--line-strong);border-radius:var(--radius);
+    background:var(--surface);color:var(--ink);min-width:0;
+  }
+  select:disabled{color:var(--ink-faint);}
+  #searchInput{flex:1 1 220px;}
+  @media (max-width:639px){
+    #searchInput{flex-basis:100%;}
+    #filterLocation,#sortSelect{flex:1 1 0;}
+  }
+  .btn{display:inline-flex;align-items:center;gap:6px;padding:9px 14px;font-size:13.5px;font-weight:600;border-radius:var(--radius);border:1px solid transparent;cursor:pointer;white-space:nowrap;}
+  .btn-sm{padding:7px 11px;font-size:13px;}
+  .btn-primary{background:var(--accent);color:#fff;}
+  .btn-primary:hover{background:var(--accent-dark);}
+  .btn-ghost{background:#fff;color:var(--ink);border-color:var(--line-strong);}
+  .btn-ghost:hover{background:var(--surface);}
+  .text-btn{background:none;border:none;padding:0;font-size:13px;font-weight:600;cursor:pointer;color:var(--accent);}
+  .text-btn.danger{color:var(--danger);}
+
+  /* ---------- View tabs ---------- */
+  .view-toggle{display:flex;margin-bottom:14px;border-bottom:1px solid var(--line);overflow-x:auto;}
+  .view-tab{background:none;border:none;padding:8px 2px 10px;margin-right:16px;font-size:14px;font-weight:600;color:var(--ink-faint);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap;}
+  .view-tab.active{color:var(--accent);border-bottom-color:var(--accent);}
+  .tab-count{display:inline-block;min-width:18px;padding:0 6px;margin-left:5px;border-radius:999px;background:var(--neutral-soft);font-size:11px;line-height:17px;color:var(--ink-soft);text-align:center;vertical-align:1px;}
+  .tab-count:empty{display:none;}
+
+  /* ---------- Groups ---------- */
+  .group{border:1px solid var(--line);border-radius:var(--radius);margin-bottom:12px;overflow:hidden;}
+  .group-header{width:100%;display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 14px;background:var(--surface);border:none;border-bottom:1px solid var(--line);cursor:pointer;text-align:left;}
+  .group.collapsed .group-header{border-bottom:none;}
+  .group.collapsed .group-body{display:none;}
+  .group-title{font-weight:700;font-size:15px;flex:none;}
+  .group-right{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end;}
+  .group-meta{font-size:12px;color:var(--ink-soft);white-space:nowrap;}
+  .group-chevron{font-size:11px;color:var(--ink-faint);transition:transform .15s ease;flex:none;}
+  .group.collapsed .group-chevron{transform:rotate(-90deg);}
+  .group-empty{padding:14px;font-size:13px;color:var(--ink-faint);border-bottom:1px solid var(--line);}
+  .group-hint{padding:10px 14px;font-size:12.5px;color:var(--ink-faint);}
+
+  .sub-header{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 14px 0 0;border-bottom:1px solid var(--line);background:#fff;}
+  .sub-toggle{flex:1 1 auto;min-width:0;display:flex;align-items:center;gap:7px;background:none;border:none;padding:9px 0 9px 14px;cursor:pointer;text-align:left;}
+  .sub-toggle:disabled{opacity:1;cursor:default;}
+  .sub-chevron{font-size:10px;color:var(--ink-faint);width:10px;flex:none;display:inline-block;transition:transform .15s ease;}
+  .sub-section.collapsed .sub-chevron{transform:rotate(-90deg);}
+  .sub-section.collapsed .sub-body{display:none;}
+  .sub-name{font-size:13px;font-weight:700;color:var(--accent-dark);display:flex;align-items:center;gap:7px;min-width:0;overflow-wrap:anywhere;}
+  .sub-name::before{content:"";width:3px;height:13px;border-radius:2px;background:var(--accent);flex:none;}
+  .sub-header.is-none .sub-name{color:var(--ink-soft);}
+  .sub-header.is-none .sub-name::before{background:var(--line-strong);}
+  .sub-right{display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end;}
+  .fold-bar{display:flex;align-items:center;justify-content:flex-end;gap:8px;margin:-4px 0 10px;flex-wrap:wrap;}
+  .fold-bar .text-btn{font-size:12.5px;color:var(--ink-soft);}
+  .fold-bar .sep{color:var(--line-strong);font-size:12px;}
+  .sub-count{font-size:12px;color:var(--ink-faint);}
+  .sub-add{border:1px solid var(--line-strong);background:#fff;border-radius:var(--radius);width:26px;height:26px;cursor:pointer;color:var(--ink-soft);font-size:15px;line-height:1;padding:0;}
+  .sub-add:hover{background:var(--accent-soft);color:var(--accent);border-color:var(--accent);}
+  .add-here{display:block;width:100%;text-align:left;padding:11px 14px;background:none;border:none;color:var(--accent);font-size:13px;font-weight:600;cursor:pointer;}
+  .add-here:hover{background:var(--accent-soft);}
+
+  /* ---------- Item rows ---------- */
+  .item-row{padding:12px 14px;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:6px;}
+  .list-box .item-row:last-child{border-bottom:none;}
+  .item-row.indent{padding-left:24px;}
+  .item-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;}
+  .item-name-wrap{display:flex;flex-direction:column;min-width:0;}
+  .item-name{font-weight:600;font-size:14.5px;overflow-wrap:anywhere;}
+  .item-meta{font-size:12px;color:var(--ink-soft);overflow-wrap:anywhere;}
+  .item-row.is-depleted .item-name,.item-row.is-depleted .item-meta{color:var(--ink-faint);}
+  .item-bottom{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+  .item-actions{margin-left:auto;display:flex;gap:4px;}
+  .mini-btn{border:1px solid var(--line-strong);background:#fff;border-radius:var(--radius);padding:3px 9px;font-size:12px;font-weight:600;color:var(--ink-soft);cursor:pointer;white-space:nowrap;}
+  .mini-btn:hover{background:var(--surface);color:var(--ink);}
+  .mini-btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;}
+  .mini-btn.danger:hover{color:var(--danger);border-color:var(--danger);background:#fff;}
+  .tag{font-size:11.5px;color:var(--ink-soft);background:var(--surface);border:1px solid var(--line);padding:1px 8px;border-radius:999px;white-space:nowrap;}
+  .badge{display:inline-flex;align-items:center;font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;white-space:nowrap;}
+  .badge-danger{background:var(--danger-soft);color:var(--danger);}
+  .badge-usedup{background:var(--accent-soft);color:var(--accent-dark);}
+  .badge-discarded{background:var(--neutral-soft);color:var(--ink-soft);}
+  .stars{color:var(--gold-faint);letter-spacing:1px;font-size:13px;}
+  .stars .filled{color:var(--gold);}
+  .muted{color:var(--ink-faint);}
+  .qty-stepper{display:inline-flex;align-items:center;border:1px solid var(--line-strong);border-radius:var(--radius);overflow:hidden;flex:none;}
+  .step-btn{width:30px;height:30px;border:none;background:#fff;cursor:pointer;font-size:16px;line-height:1;color:var(--ink-soft);padding:0;}
+  .step-btn:hover{background:var(--surface);color:var(--ink);}
+  .qty-value{min-width:32px;text-align:center;font-variant-numeric:tabular-nums;font-weight:700;font-size:14px;padding:0 2px;}
+  .list-box{border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;}
+
+  /* ---------- Archive ---------- */
+  .chips{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;}
+  .chip{border:1px solid var(--line-strong);background:#fff;border-radius:999px;padding:5px 12px;font-size:12.5px;font-weight:600;color:var(--ink-soft);cursor:pointer;}
+  .chip.active{background:var(--ink);border-color:var(--ink);color:#fff;}
+  .archive-info{font-size:12px;color:var(--ink-soft);font-variant-numeric:tabular-nums;}
+  .archive-note{font-size:12px;color:var(--ink-soft);}
+  .archive-note::before{content:"· ";}
+
+  .empty-state{text-align:center;padding:56px 20px;border:1px dashed var(--line-strong);border-radius:var(--radius);color:var(--ink-soft);}
+  .empty-state h3{margin:0 0 6px;color:var(--ink);font-size:15px;}
+  .empty-state p{margin:0 0 16px;font-size:13.5px;}
+  .empty-state p:last-child{margin-bottom:0;}
+
+  /* ---------- Modal ---------- */
+  .modal-backdrop{position:fixed;inset:0;background:rgba(22,24,27,.45);display:none;align-items:center;justify-content:center;padding:16px;z-index:100;}
+  .modal-backdrop.is-open{display:flex;}
+  .modal{background:#fff;border-radius:10px;box-shadow:var(--shadow);width:100%;max-width:460px;max-height:90vh;overflow-y:auto;padding:22px 20px;}
+  .modal-sm{max-width:400px;}
+  .modal-loc{max-width:540px;}
+  .modal h2{margin:0 0 16px;font-size:17px;font-weight:700;}
+  .modal-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:4px;}
+  .modal-head h2{margin:0;}
+  .close-btn{border:none;background:none;font-size:18px;line-height:1;cursor:pointer;color:var(--ink-faint);padding:4px;}
+  .modal-desc{font-size:12.5px;color:var(--ink-soft);margin:0 0 14px;}
+  .form-field{margin-bottom:14px;}
+  .field-label{display:block;font-size:13px;font-weight:600;color:var(--ink-soft);margin-bottom:6px;}
+  .form-field > input,.form-field > select{display:block;width:100%;}
+  .field-row{display:flex;gap:10px;}
+  .field-row > .form-field{flex:1 1 0;min-width:0;}
+  .field-row > .qty-field{flex:0 0 92px;}
+  .field-hint{display:block;font-size:12px;color:var(--ink-faint);margin-top:5px;}
+  .req{color:var(--danger);}
+  .opt{font-weight:400;color:var(--ink-faint);font-size:12px;}
+  .inline-add{display:flex;gap:6px;margin-top:6px;}
+  .inline-add input{flex:1 1 auto;}
+  .star-input{display:flex;gap:4px;}
+  .star-btn{border:none;background:none;cursor:pointer;font-size:26px;line-height:1;color:var(--gold-faint);padding:2px;}
+  .star-btn.filled{color:var(--gold);}
+  .rating-caption{display:block;margin-top:4px;font-size:12.5px;color:var(--ink-faint);}
+  .modal-actions{display:flex;justify-content:flex-end;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap;}
+  .modal-actions .left{margin-right:auto;}
+  .modal p{font-size:13.5px;color:var(--ink-soft);}
+  .info-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:12px 14px;margin-bottom:14px;}
+  .info-card-title{font-weight:700;font-size:14px;color:var(--ink);margin-bottom:2px;}
+  .info-card-meta{font-size:12.5px;color:var(--ink-soft);}
+  .dup-lead{font-weight:700;font-size:15px;color:var(--ink) !important;margin:0 0 10px;}
+  .dup-question{font-size:13px !important;margin:0 0 4px;}
+  .ver-row{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:12px 14px;font-size:13px;margin-bottom:16px;}
+  .ver-row strong{color:var(--ink);}
+
+  .seg{display:flex;gap:8px;}
+  .seg-btn{flex:1;border:1px solid var(--line-strong);background:#fff;border-radius:var(--radius);padding:10px 8px;font-size:14px;font-weight:700;cursor:pointer;text-align:center;color:var(--ink-soft);}
+  .seg-btn small{display:block;font-weight:400;font-size:11.5px;color:var(--ink-faint);margin-top:1px;}
+  .seg-btn.active{border-color:var(--accent);background:var(--accent-soft);color:var(--accent-dark);}
+
+  /* ---------- Location manager ---------- */
+  .loc-add-row{display:flex;gap:6px;}
+  .loc-add-row input{flex:1 1 auto;}
+  .loc-tools{display:flex;justify-content:space-between;align-items:center;margin:12px 0 8px;font-size:12px;color:var(--ink-faint);}
+  .loc-card{border:1px solid var(--line);border-radius:var(--radius);margin-bottom:8px;overflow:hidden;}
+  .loc-row{display:flex;align-items:center;gap:6px;padding:8px 10px;}
+  .loc-row.sub{padding:6px 10px 6px 16px;border-top:1px solid var(--line);background:var(--surface);}
+  .order-btns{display:flex;flex-direction:column;gap:2px;flex:none;}
+  .order-btns button{width:24px;height:17px;border:1px solid var(--line-strong);background:#fff;border-radius:3px;font-size:8px;line-height:1;cursor:pointer;color:var(--ink-soft);padding:0;}
+  .loc-name{flex:1 1 auto;min-width:0;text-align:left;background:none;border:none;cursor:pointer;font-size:14px;font-weight:700;padding:4px 2px;display:flex;align-items:baseline;gap:6px;flex-wrap:wrap;}
+  .loc-row.sub .loc-name{font-weight:500;font-size:13.5px;cursor:default;}
+  .loc-count{font-size:11.5px;color:var(--ink-faint);font-weight:400;}
+  .caret{color:var(--ink-faint);font-size:10px;width:10px;display:inline-block;}
+  .rename-input{flex:1 1 auto;padding:6px 8px !important;font-size:14px !important;}
+  .sub-add-row{display:flex;gap:6px;padding:8px 10px 10px 16px;border-top:1px solid var(--line);background:var(--surface);}
+  .sub-add-row input{flex:1 1 auto;padding:6px 9px;background:#fff;}
+  .sub-tools{padding:0 10px 10px 16px;background:var(--surface);}
+
+  /* ---------- History ---------- */
+  .history-summary{background:var(--accent-soft);color:var(--accent-dark);border-radius:var(--radius);padding:9px 12px;font-size:12.5px;font-weight:600;margin-bottom:10px;}
+  .history-list{max-height:50vh;overflow-y:auto;margin-bottom:12px;}
+  .history-entry{padding:9px 0;border-bottom:1px solid var(--line);}
+  .history-entry:last-child{border-bottom:none;}
+  .history-date{font-size:11.5px;color:var(--ink-faint);}
+  .history-change{font-size:13.5px;font-weight:500;}
+  .history-note{font-size:12.5px;color:var(--ink-soft);}
+  .history-usedup .history-change,.history-discarded .history-change,.history-lost .history-change{color:var(--danger);}
+  .history-restore .history-change,.history-restock .history-change{color:var(--accent-dark);}
+  .history-summary div + div{margin-top:2px;}
+
+  /* ---------- Alerts & extra badges ---------- */
+  .alert-strip{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 14px;}
+  .alert-chip{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line-strong);background:#fff;border-radius:999px;padding:5px 12px;font-size:12.5px;font-weight:600;color:var(--ink);cursor:pointer;}
+  .alert-chip::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--gold);flex:none;}
+  .alert-chip.danger::before{background:var(--danger);}
+  .alert-chip.info::before{background:var(--accent);}
+  .alert-chip:hover{background:var(--surface);}
+  .badge-warn{background:var(--warn-soft);color:var(--warn);}
+  .badge-lost{background:var(--danger-soft);color:var(--danger);}
+  .badge-muted{background:var(--neutral-soft);color:var(--ink-soft);font-weight:500;}
+  .badge-ok{background:var(--accent-soft);color:var(--accent-dark);}
+
+  /* ---------- Shop / check views ---------- */
+  .panel-intro{font-size:12.5px;color:var(--ink-soft);margin:0 0 12px;}
+  .view-head{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;}
+  .view-head .panel-intro{margin:0;}
+  .section-title{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin:18px 0 8px;font-size:13.5px;font-weight:700;}
+  .section-title:first-child{margin-top:0;}
+  .section-title small{font-size:12px;font-weight:400;color:var(--ink-faint);}
+  .shop-qty{font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap;}
+  .big-num{font-size:17px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap;text-align:right;line-height:1.2;}
+  .big-num small{display:block;font-size:11px;font-weight:500;color:var(--ink-faint);}
+  .dup-card{border:1px solid var(--line);border-radius:var(--radius);margin-bottom:10px;overflow:hidden;}
+  .dup-card-head{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 14px;background:var(--surface);border-bottom:1px solid var(--line);}
+  .dup-card-head strong{font-size:14.5px;}
+  .dup-option{display:flex;align-items:center;gap:10px;padding:9px 14px;border-bottom:1px solid var(--line);cursor:pointer;}
+  .dup-option input{accent-color:var(--accent);width:17px;height:17px;flex:none;margin:0;}
+  .dup-option .grow{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;}
+  .dup-card-foot{display:flex;justify-content:flex-end;gap:6px;padding:9px 14px;flex-wrap:wrap;}
+  .pair-row{display:flex;align-items:center;gap:10px;padding:9px 14px;border-bottom:1px solid var(--line);}
+  .pair-row:last-child{border-bottom:none;}
+  .pair-row .grow{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;}
+  .audit-bar{border:1px solid var(--line);border-radius:var(--radius);padding:12px 14px;margin-bottom:14px;}
+  .audit-bar .label-row{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:13.5px;}
+  .progress{height:6px;border-radius:999px;background:var(--neutral-soft);overflow:hidden;margin:8px 0 10px;}
+  .progress > span{display:block;height:100%;background:var(--accent);transition:width .2s ease;}
+  .audit-actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
+  .toggle{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--ink-soft);cursor:pointer;}
+  .toggle input{accent-color:var(--accent);width:16px;height:16px;margin:0;}
+  .stat-line{font-size:12.5px;color:var(--ink-soft);}
+  .stat-line strong{color:var(--ink);}
+  .mini-btn.done{background:var(--accent-soft);border-color:var(--accent-soft);color:var(--accent-dark);cursor:default;}
+  .item-row.is-checked .item-name{color:var(--ink-soft);}
+  details.more{border:1px solid var(--line);border-radius:var(--radius);padding:0 12px;margin-bottom:14px;}
+  details.more summary{cursor:pointer;padding:10px 0;font-size:13px;font-weight:600;color:var(--ink-soft);}
+  .label-line{display:flex;justify-content:space-between;align-items:baseline;gap:6px;}
+  .label-line .field-label{margin-bottom:6px;}
+  .clear-btn{font-size:12px;font-weight:600;color:var(--ink-faint);background:none;border:none;padding:0;cursor:pointer;}
+
+  /* ---------- Toast & footer ---------- */
+  .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 18px;border-radius:var(--radius);font-size:13px;z-index:200;box-shadow:var(--shadow);max-width:calc(100% - 32px);text-align:center;}
+  footer.hint{margin-top:28px;font-size:12px;color:var(--ink-faint);text-align:center;}
+
+  @media (max-width:639px){
+    .app-shell{padding:20px 14px 70px;}
+    .modal{padding:20px 16px;}
+  }
+
+  /* ---------- Print ---------- */
+  @media print{
+    @page{margin:14mm;}
+    body > *:not(#printArea){display:none !important;}
+    #printArea{display:block !important;}
+    #printArea h1{font-size:18px;margin:0 0 4px;}
+    #printArea .print-meta{font-size:11px;color:#555;margin-bottom:12px;}
+    #printArea h2{font-size:13.5px;margin:16px 0 6px;padding-bottom:4px;border-bottom:1.5px solid #333;page-break-after:avoid;}
+    #printArea .print-group-meta{font-weight:400;color:#555;font-size:11px;}
+    #printArea table{width:100%;border-collapse:collapse;font-size:10.5px;margin-bottom:4px;}
+    #printArea th,#printArea td{border:1px solid #aaa;padding:5px 7px;text-align:left;vertical-align:top;}
+    #printArea th{background:#f2f2f0;}
+    #printArea tr{page-break-inside:avoid;}
+    #printArea th.num,#printArea td.num{text-align:right;}
+    #printArea tr.depleted-row td{color:#999;}
+  }
+</style>
+</head>
+<body>
+
+<div class="app-shell">
+  <header class="topbar">
+    <div class="topbar-title">
+      <h1>재고 정리</h1>
+      <p>어디에 뭐가 몇 개 있는지 한눈에 보는 물건 재고 관리</p>
+    </div>
+    <span class="save-indicator" id="saveIndicator">자동 저장됨 · <time id="lastSavedTime">-</time></span>
+  </header>
+
+  <section class="stats" aria-label="요약 통계">
+    <div class="stat"><span class="stat-value" id="statCount">0</span><span class="stat-label">보유 품목</span></div>
+    <div class="stat"><span class="stat-value" id="statQty">0</span><span class="stat-label">총 수량</span></div>
+    <div class="stat"><span class="stat-value" id="statDepleted">0</span><span class="stat-label">소진 (0개)</span></div>
+    <div class="stat"><span class="stat-value" id="statArchived">0</span><span class="stat-label">보관함</span></div>
+  </section>
+
+  <section class="toolbar">
+    <div class="toolbar-row">
+      <input type="search" id="searchInput" placeholder="물건, 브랜드, 위치, 용도 검색">
+      <select id="filterLocation" aria-label="위치 필터"></select>
+      <select id="sortSelect" aria-label="정렬">
+        <option value="new">최신 등록순</option>
+        <option value="old">오래된 등록순</option>
+        <option value="name">이름순</option>
+        <option value="qtyDesc">수량 많은순</option>
+        <option value="qtyAsc">수량 적은순</option>
+        <option value="ratingDesc">평가 높은순</option>
+        <option value="ratingAsc">평가 낮은순</option>
+        <option value="expiry">기한 임박순</option>
+      </select>
+    </div>
+    <div class="toolbar-row">
+      <button type="button" class="btn btn-primary" id="addItemBtn">+ 새 항목</button>
+      <button type="button" class="btn btn-ghost" id="manageLocBtn">위치 관리</button>
+      <span class="spacer"></span>
+      <button type="button" class="btn btn-ghost btn-sm" id="importBtn">가져오기</button>
+      <button type="button" class="btn btn-ghost btn-sm" id="exportBtn">내보내기</button>
+      <button type="button" class="btn btn-ghost btn-sm" id="pdfBtn">PDF</button>
+    </div>
+  </section>
+
+  <main id="mainContent">
+    <div class="alert-strip" id="alertStrip" hidden></div>
+    <nav class="view-toggle" aria-label="보기 방식">
+      <button type="button" class="view-tab active" data-act="view" data-view="location">위치별</button>
+      <button type="button" class="view-tab" data-act="view" data-view="purpose">용도별</button>
+      <button type="button" class="view-tab" data-act="view" data-view="flat">전체</button>
+      <button type="button" class="view-tab" data-act="view" data-view="shop">장보기<span class="tab-count" id="shopTabCount"></span></button>
+      <button type="button" class="view-tab" data-act="view" data-view="check">점검<span class="tab-count" id="checkTabCount"></span></button>
+      <button type="button" class="view-tab" data-act="view" data-view="archive">보관함<span class="tab-count" id="archiveTabCount"></span></button>
+    </nav>
+    <div id="viewContainer"></div>
+  </main>
+
+  <footer class="hint">데이터는 이 브라우저에 자동 저장돼요 · 다른 기기로 옮기려면 ‘내보내기’를 이용하세요 · v<span id="appVersionLabel"></span></footer>
+</div>
+
+<!-- 항목 추가/수정 -->
+<div class="modal-backdrop" id="itemModalBackdrop">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="itemModalTitle">
+    <h2 id="itemModalTitle">새 항목 추가</h2>
+    <form id="itemForm" novalidate>
+      <input type="hidden" id="itemId">
+
+      <div class="form-field">
+        <label class="field-label" for="fieldLocation">큰 위치 <span class="req">*</span></label>
+        <select id="fieldLocation"></select>
+        <div class="inline-add" id="locNewRow" hidden>
+          <input type="text" id="fieldLocNew" placeholder="새 위치 이름 (예: 베란다)">
+          <button type="button" class="btn btn-primary btn-sm" id="locNewAddBtn">추가</button>
+          <button type="button" class="btn btn-ghost btn-sm" id="locNewCancelBtn">취소</button>
+        </div>
+      </div>
+
+      <div class="form-field">
+        <label class="field-label" for="fieldSub">세부 위치 <span class="opt">선택</span></label>
+        <select id="fieldSub"></select>
+        <div class="inline-add" id="subNewRow" hidden>
+          <input type="text" id="fieldSubNew" placeholder="새 세부 위치 (예: 침대서랍)">
+          <button type="button" class="btn btn-primary btn-sm" id="subNewAddBtn">추가</button>
+          <button type="button" class="btn btn-ghost btn-sm" id="subNewCancelBtn">취소</button>
+        </div>
+      </div>
+
+      <div class="form-field">
+        <label class="field-label" for="fieldName">물건 이름 <span class="req">*</span></label>
+        <input type="text" id="fieldName" placeholder="예: 겨울 패딩" autocomplete="off">
+      </div>
+
+      <div class="field-row">
+        <div class="form-field">
+          <label class="field-label" for="fieldBrand">브랜드 <span class="opt">선택</span></label>
+          <input type="text" id="fieldBrand" placeholder="예: 유니클로" autocomplete="off">
+        </div>
+        <div class="form-field qty-field">
+          <label class="field-label" for="fieldQuantity">수량 <span class="req">*</span></label>
+          <input type="number" id="fieldQuantity" min="0" step="1" inputmode="numeric" value="1">
+        </div>
+      </div>
+
+      <div class="field-row">
+        <div class="form-field">
+          <label class="field-label" for="fieldMinQty">최소 수량 <span class="opt">선택</span></label>
+          <input type="number" id="fieldMinQty" min="0" step="1" inputmode="numeric" placeholder="예: 2">
+          <span class="field-hint">이 수량 이하가 되면 장보기에 올라가요</span>
+        </div>
+        <div class="form-field">
+          <div class="label-line">
+            <label class="field-label" for="fieldExpiry">유통·사용기한 <span class="opt">선택</span></label>
+            <button type="button" class="clear-btn" data-clear="fieldExpiry">지우기</button>
+          </div>
+          <input type="date" id="fieldExpiry">
+        </div>
+      </div>
+
+      <div class="form-field">
+        <label class="field-label" for="fieldPurpose">용도 <span class="opt">선택</span></label>
+        <input type="text" id="fieldPurpose" list="purposeList" placeholder="예: 겨울옷, 청소용품" autocomplete="off">
+        <datalist id="purposeList"></datalist>
+      </div>
+
+      <div class="form-field">
+        <span class="field-label">평가</span>
+        <div class="star-input" id="starInput" role="radiogroup" aria-label="평가 (1~5점)"></div>
+        <span class="rating-caption" id="ratingCaption">보통</span>
+        <input type="hidden" id="fieldRating" value="3">
+      </div>
+
+      <details class="more" id="purchaseDetails">
+        <summary>구매 정보 <span class="opt">선택 · 구매일, 가격, 구매처</span></summary>
+        <div class="field-row">
+          <div class="form-field">
+            <div class="label-line">
+              <label class="field-label" for="fieldPurchaseDate">구매일</label>
+              <button type="button" class="clear-btn" data-clear="fieldPurchaseDate">지우기</button>
+            </div>
+            <input type="date" id="fieldPurchaseDate">
+          </div>
+          <div class="form-field">
+            <label class="field-label" for="fieldPrice">가격 (원)</label>
+            <input type="number" id="fieldPrice" min="0" step="1" inputmode="numeric" placeholder="예: 9800">
+          </div>
+        </div>
+        <div class="form-field">
+          <label class="field-label" for="fieldStore">구매처</label>
+          <input type="text" id="fieldStore" list="storeList" placeholder="예: 쿠팡, 다이소, 동네 마트" autocomplete="off">
+        </div>
+      </details>
+
+      <div class="modal-actions">
+        <button type="button" class="text-btn danger left" id="deleteItemBtn" hidden>삭제</button>
+        <button type="button" class="btn btn-ghost" id="cancelItemBtn">취소</button>
+        <button type="submit" class="btn btn-primary" id="submitItemBtn">추가</button>
+      </div>
+    </form>
+
+    <div id="dupPanel" hidden>
+      <p class="dup-lead" id="dupLead"></p>
+      <div class="info-card">
+        <div class="info-card-title" id="dupExistingName"></div>
+        <div class="info-card-meta" id="dupExistingMeta"></div>
+      </div>
+      <p class="dup-question" id="dupQuestion"></p>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" id="dupCancelBtn">돌아가기</button>
+        <button type="button" class="btn btn-ghost" id="dupAddNewBtn">새로 추가</button>
+        <button type="button" class="btn btn-primary" id="dupPrimaryBtn"></button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 정리하기 (다 씀 / 버림) -->
+<div class="modal-backdrop" id="archiveModalBackdrop">
+  <div class="modal modal-sm" role="dialog" aria-modal="true" aria-labelledby="archiveModalTitle">
+    <h2 id="archiveModalTitle">정리하기</h2>
+    <div class="info-card">
+      <div class="info-card-title" id="archiveItemName"></div>
+      <div class="info-card-meta" id="archiveItemMeta"></div>
+    </div>
+    <div class="form-field">
+      <span class="field-label">어떻게 정리했나요?</span>
+      <div class="seg" id="archiveReasonSeg">
+        <button type="button" class="seg-btn active" data-reason="usedup">다 씀<small>소모·사용 완료</small></button>
+        <button type="button" class="seg-btn" data-reason="discarded">버림<small>폐기·나눔·처분</small></button>
+        <button type="button" class="seg-btn" data-reason="lost">없어짐<small>분실·못 찾음</small></button>
+      </div>
+    </div>
+    <div class="form-field" id="archiveCountField">
+      <label class="field-label" for="archiveCount">정리할 수량</label>
+      <input type="number" id="archiveCount" min="1" step="1" inputmode="numeric">
+      <span class="field-hint" id="archiveCountHint"></span>
+    </div>
+    <div class="form-field">
+      <label class="field-label" for="archiveNote">메모 <span class="opt">선택</span></label>
+      <input type="text" id="archiveNote" placeholder="예: 고장나서, 유통기한 지남, 친구에게 줌" autocomplete="off">
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-ghost" id="archiveCancelBtn">취소</button>
+      <button type="button" class="btn btn-primary" id="archiveConfirmBtn">보관함으로 이동</button>
+    </div>
+  </div>
+</div>
+
+<!-- 구매 기록 -->
+<div class="modal-backdrop" id="restockModalBackdrop">
+  <div class="modal modal-sm" role="dialog" aria-modal="true" aria-labelledby="restockModalTitle">
+    <h2 id="restockModalTitle">구매 기록</h2>
+    <div class="info-card">
+      <div class="info-card-title" id="restockItemName"></div>
+      <div class="info-card-meta" id="restockItemMeta"></div>
+    </div>
+    <div class="field-row">
+      <div class="form-field qty-field">
+        <label class="field-label" for="restockQty">구입 수량</label>
+        <input type="number" id="restockQty" min="1" step="1" inputmode="numeric">
+      </div>
+      <div class="form-field">
+        <label class="field-label" for="restockDate">구매일</label>
+        <input type="date" id="restockDate">
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="form-field">
+        <label class="field-label" for="restockPrice">가격 (원) <span class="opt">선택</span></label>
+        <input type="number" id="restockPrice" min="0" step="1" inputmode="numeric">
+      </div>
+      <div class="form-field">
+        <label class="field-label" for="restockStore">구매처 <span class="opt">선택</span></label>
+        <input type="text" id="restockStore" list="storeList" autocomplete="off">
+      </div>
+    </div>
+    <div class="form-field">
+      <label class="field-label" for="restockExpiry">새 유통·사용기한 <span class="opt">선택</span></label>
+      <input type="date" id="restockExpiry">
+    </div>
+    <p class="field-hint" id="restockLastInfo" style="margin:-4px 0 6px"></p>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-ghost" id="restockCancelBtn">취소</button>
+      <button type="button" class="btn btn-primary" id="restockConfirmBtn">기록하기</button>
+    </div>
+  </div>
+</div>
+
+<!-- 위치 관리 -->
+<div class="modal-backdrop" id="locModalBackdrop">
+  <div class="modal modal-loc" role="dialog" aria-modal="true" aria-labelledby="locModalTitle">
+    <div class="modal-head">
+      <h2 id="locModalTitle">위치 관리</h2>
+      <button type="button" class="close-btn" id="closeLocBtn" aria-label="닫기">✕</button>
+    </div>
+    <p class="modal-desc">큰 위치(방)를 누르면 세부 위치(가구·수납장)를 관리할 수 있어요. ▲▼로 순서를 바꿔요.</p>
+    <div class="loc-add-row">
+      <input type="text" id="newLocInput" placeholder="새 큰 위치 (예: 베란다, 현관)" autocomplete="off">
+      <button type="button" class="btn btn-primary btn-sm" id="newLocBtn">추가</button>
+    </div>
+    <div class="loc-tools">
+      <span id="locSummary"></span>
+      <button type="button" class="text-btn" id="sortLocsBtn">가나다순 정렬</button>
+    </div>
+    <div id="locList"></div>
+  </div>
+</div>
+
+<!-- 이력 -->
+<div class="modal-backdrop" id="historyModalBackdrop">
+  <div class="modal modal-sm" role="dialog" aria-modal="true" aria-labelledby="historyModalTitle">
+    <h2 id="historyModalTitle" style="margin-bottom:2px">이력</h2>
+    <p id="historyModalMeta" style="margin:0 0 12px;font-size:12.5px"></p>
+    <div class="history-summary" id="historySummary" hidden></div>
+    <div id="historyList" class="history-list"></div>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-ghost" id="closeHistoryBtn">닫기</button>
+    </div>
+  </div>
+</div>
+
+<!-- 업데이트 알림 -->
+<div class="modal-backdrop" id="updateModalBackdrop">
+  <div class="modal modal-sm" role="dialog" aria-modal="true" aria-labelledby="updateModalTitle">
+    <h2 id="updateModalTitle">새로운 업데이트가 있습니다</h2>
+    <div class="ver-row">현재 버전 <strong id="curVerText"></strong> → 새 버전 <strong id="newVerText"></strong></div>
+    <p>새로고침하면 최신 버전으로 업데이트됩니다. 저장된 데이터는 유지됩니다.</p>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-ghost" id="laterBtn">나중에</button>
+      <button type="button" class="btn btn-primary" id="reloadBtn">새로고침</button>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="importFileInput" accept="application/json,.json" hidden>
+<datalist id="storeList"></datalist>
+<div id="toast" class="toast" role="status" hidden></div>
+<div id="printArea"></div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* =========================================================
+     설정
+  ========================================================= */
+  const APP_VERSION = "1.3.1";
+  const VERSION_CHECK_INTERVAL_MS = 5 * 60 * 1000;
+  const DATA_KEY = "inventoryApp:data:v2";
+  const LEGACY_ITEMS_KEY = "inventoryApp:items:v1";
+  const META_KEY = "inventoryApp:meta:v1";
+  const UI_KEY = "inventoryApp:ui:v1";   // 접힘 상태 등 화면 설정 (이 기기에만 저장)
+  const IGNORED_VERSION_KEY = "inventoryApp:ignoredVersion";
+  const RATING_LABELS = {1:"매우 별로", 2:"별로", 3:"보통", 4:"좋음", 5:"매우 좋음"};
+  const REASON_LABELS = { usedup: "다 씀", discarded: "버림", lost: "없어짐" };
+  const REASONS = ["usedup", "discarded", "lost"];
+  const EXPIRY_SOON_DAYS = 30;   // 기한 임박 기준 (일)
+  const STALE_DAYS = 90;         // 오래 확인 안 한 물건 기준 (일)
+  const FORECAST_DAYS = 14;      // '곧 떨어짐' 예측 기준 (일)
+  const DAY_MS = 86400000;
+  const DEFAULT_LOCATIONS = [
+    { name: "거실",   subs: ["TV장", "수납장"] },
+    { name: "안방",   subs: ["옷장", "화장대"] },
+    { name: "내방",   subs: ["옷장", "책상", "침대서랍"] },
+    { name: "화장실", subs: ["세면대 수납장"] },
+    { name: "주방",   subs: ["상부장", "하부장", "냉장고"] }
+  ];
+
+  /* =========================================================
+     상태
+  ========================================================= */
+  const defaultMeta = () => ({ auditStartedAt: null, dupIgnored: [] });
+  let state = { locations: [], items: [], meta: defaultMeta() };
+  const ui = {
+    view: "location",
+    archiveFilter: "all",
+    checkTab: "expiry",
+    auditUncheckedOnly: false,
+    dupTargets: {},
+    restockTargetId: null,
+    collapsed: new Set(),
+    pendingDup: null,
+    archiveTargetId: null,
+    archiveReason: "usedup",
+    locEditing: null,
+    locExpanded: new Set(),
+    prevLocValue: "",
+    prevSubValue: "",
+    lastLocationId: "",
+    lastSubId: ""
+  };
+
+  const el = {};
+  [
+    "saveIndicator","lastSavedTime","statCount","statQty","statDepleted","statArchived",
+    "searchInput","filterLocation","sortSelect","addItemBtn","manageLocBtn","importBtn","exportBtn","pdfBtn",
+    "mainContent","viewContainer","archiveTabCount","appVersionLabel","alertStrip","shopTabCount","checkTabCount",
+    "itemModalBackdrop","itemModalTitle","itemForm","itemId",
+    "fieldLocation","locNewRow","fieldLocNew","locNewAddBtn","locNewCancelBtn",
+    "fieldSub","subNewRow","fieldSubNew","subNewAddBtn","subNewCancelBtn",
+    "fieldName","fieldBrand","fieldQuantity","fieldPurpose","purposeList",
+    "fieldMinQty","fieldExpiry","purchaseDetails","fieldPurchaseDate","fieldPrice","fieldStore","storeList",
+    "restockModalBackdrop","restockItemName","restockItemMeta","restockQty","restockDate","restockPrice","restockStore",
+    "restockExpiry","restockLastInfo","restockCancelBtn","restockConfirmBtn",
+    "starInput","ratingCaption","fieldRating","deleteItemBtn","cancelItemBtn","submitItemBtn",
+    "dupPanel","dupLead","dupExistingName","dupExistingMeta","dupQuestion","dupCancelBtn","dupAddNewBtn","dupPrimaryBtn",
+    "archiveModalBackdrop","archiveItemName","archiveItemMeta","archiveReasonSeg","archiveCountField","archiveCount",
+    "archiveCountHint","archiveNote","archiveCancelBtn","archiveConfirmBtn",
+    "locModalBackdrop","closeLocBtn","newLocInput","newLocBtn","sortLocsBtn","locSummary","locList",
+    "historyModalBackdrop","historyModalTitle","historyModalMeta","historySummary","historyList","closeHistoryBtn",
+    "updateModalBackdrop","curVerText","newVerText","laterBtn","reloadBtn",
+    "importFileInput","toast","printArea"
+  ].forEach(function(id){ el[id] = document.getElementById(id); });
+
+  /* =========================================================
+     유틸
+  ========================================================= */
+  function uid(){
+    if(window.crypto && crypto.randomUUID) return crypto.randomUUID();
+    return "id-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 10);
+  }
+  const pad = n => String(n).padStart(2, "0");
+  const nowISO = () => new Date().toISOString();
+  function formatDateTime(iso){
+    const d = new Date(iso);
+    if(!iso || isNaN(d.getTime())) return "-";
+    return `${d.getFullYear()}.${pad(d.getMonth()+1)}.${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+  }
+  function formatDate(iso){
+    const d = new Date(iso);
+    if(!iso || isNaN(d.getTime())) return "-";
+    return `${d.getFullYear()}.${pad(d.getMonth()+1)}.${pad(d.getDate())}`;
+  }
+  function esc(s){
+    return String(s == null ? "" : s)
+      .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+      .replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+  }
+  const norm = s => String(s || "").trim().toLowerCase().replace(/\s+/g, "");
+  const num = n => (Number(n) || 0).toLocaleString("ko-KR");
+  const byName = (a, b) => String(a || "").localeCompare(String(b || ""), "ko");
+  const clampRating = r => Math.min(5, Math.max(1, Math.round(Number(r) || 3)));
+  const toQty = v => Math.max(0, Math.round(Number(v) || 0));
+  const sumQty = list => list.reduce((s, it) => s + (Number(it.quantity) || 0), 0);
+  const isDepleted = it => (Number(it.quantity) || 0) === 0;
+  const won = n => num(n) + "원";
+  const validDate = s => (typeof s === "string" && /^\d{4}-\d{2}-\d{2}$/.test(s)) ? s : "";
+  const formatYMD = s => validDate(s) ? s.replace(/-/g, ".") : "-";
+  function todayStr(){
+    const d = new Date();
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  }
+  function daysUntil(dateStr){
+    if(!validDate(dateStr)) return null;
+    const p = dateStr.split("-").map(Number);
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    return Math.round((new Date(p[0], p[1] - 1, p[2]) - today) / DAY_MS);
+  }
+  function daysSince(iso){
+    const t = new Date(iso).getTime();
+    if(!iso || isNaN(t)) return null;
+    return Math.max(0, Math.floor((Date.now() - t) / DAY_MS));
+  }
+  const needsBuy = it => it.status === "active" && it.minQty !== null && it.minQty !== undefined && it.quantity <= it.minQty;
+  function expiryState(it){
+    const d = daysUntil(it.expiry);
+    if(d === null) return null;
+    if(d < 0) return { level: "past", days: d };
+    if(d <= EXPIRY_SOON_DAYS) return { level: "soon", days: d };
+    return { level: "ok", days: d };
+  }
+  function expiryBadge(it){
+    const s = expiryState(it);
+    if(!s) return "";
+    if(s.level === "past") return `<span class="badge badge-danger">기한 지남 ${-s.days}일</span>`;
+    if(s.level === "soon") return `<span class="badge badge-warn">${s.days === 0 ? "오늘까지" : "기한 D-" + s.days}</span>`;
+    return `<span class="badge badge-muted">기한 ${formatYMD(it.expiry)}</span>`;
+  }
+  function lastPurchaseText(it){
+    const p = it.purchase;
+    if(!p) return "";
+    const parts = [p.date ? formatYMD(p.date) : "", p.store, p.price !== null && p.price !== undefined ? won(p.price) : ""].filter(Boolean);
+    return parts.length ? "지난 구매 " + parts.join(" · ") : "";
+  }
+  function fmtRate(daysPerUnit){
+    if(daysPerUnit >= 1){
+      const d = daysPerUnit >= 10 ? Math.round(daysPerUnit) : Math.round(daysPerUnit * 10) / 10;
+      return `${d}일에 1개`;
+    }
+    return `하루 ${Math.round(10 / daysPerUnit) / 10}개`;
+  }
+  function starsHTML(r){
+    const v = clampRating(r); let out = "";
+    for(let i = 1; i <= 5; i++) out += i <= v ? '<span class="filled">★</span>' : "☆";
+    return out;
+  }
+  function starsPlain(r){
+    const v = clampRating(r); let out = "";
+    for(let i = 1; i <= 5; i++) out += i <= v ? "★" : "☆";
+    return out;
+  }
+  function debounce(fn, wait){
+    let t;
+    return function(){ const a = arguments; clearTimeout(t); t = setTimeout(() => fn.apply(null, a), wait); };
+  }
+  let toastTimer;
+  function toast(msg){
+    el.toast.textContent = msg;
+    el.toast.hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { el.toast.hidden = true; }, 2600);
+  }
+
+  /* =========================================================
+     조회 도우미
+  ========================================================= */
+  const findLoc = id => id ? (state.locations.find(l => l.id === id) || null) : null;
+  const findSub = (loc, id) => (loc && id) ? (loc.subs.find(s => s.id === id) || null) : null;
+  const findItem = id => state.items.find(x => x.id === id) || null;
+  const activeItems = () => state.items.filter(x => x.status === "active");
+  const archivedItems = () => state.items.filter(x => x.status === "archived");
+  function locPath(it){
+    const loc = findLoc(it.locationId);
+    if(!loc) return "위치 미지정";
+    const sub = findSub(loc, it.subLocationId);
+    return sub ? `${loc.name} › ${sub.name}` : loc.name;
+  }
+  function fixLocationRefs(it){
+    const loc = findLoc(it.locationId);
+    if(!loc){ it.locationId = null; it.subLocationId = null; return; }
+    if(!findSub(loc, it.subLocationId)) it.subLocationId = null;
+  }
+  function logHistory(it, entry){
+    if(!Array.isArray(it.history)) it.history = [];
+    it.history.unshift(Object.assign({ date: nowISO() }, entry));
+  }
+  function displayName(it){ return (it.brand ? it.brand + " · " : "") + it.name; }
+
+  /* =========================================================
+     저장 / 불러오기 (실시간 자동저장)
+  ========================================================= */
+  function seedLocations(){
+    return DEFAULT_LOCATIONS.map(l => ({ id: uid(), name: l.name, subs: l.subs.map(s => ({ id: uid(), name: s })) }));
+  }
+
+  function normalizeLocation(l){
+    if(!l || !String(l.name || "").trim()) return null;
+    return {
+      id: l.id || uid(),
+      name: String(l.name).trim(),
+      subs: (Array.isArray(l.subs) ? l.subs : [])
+        .filter(s => s && String(s.name || "").trim())
+        .map(s => ({ id: s.id || uid(), name: String(s.name).trim() }))
+    };
+  }
+
+  function normalizePurchase(p){
+    if(!p || typeof p !== "object") return null;
+    const price = (p.price === null || p.price === undefined || p.price === "") ? null : toQty(p.price);
+    const out = { date: validDate(p.date), price: price, store: String(p.store || "").trim() };
+    return (out.date || out.price !== null || out.store) ? out : null;
+  }
+
+  function normalizeMeta(m){
+    m = m || {};
+    return {
+      auditStartedAt: m.auditStartedAt || null,
+      dupIgnored: Array.isArray(m.dupIgnored) ? m.dupIgnored.filter(k => typeof k === "string") : []
+    };
+  }
+
+  function normalizeItem(raw){
+    if(!raw || !String(raw.name || "").trim()) return null;
+    const qty = toQty(raw.quantity);
+    const created = raw.createdAt || nowISO();
+    const it = {
+      id: raw.id || uid(),
+      locationId: raw.locationId || null,
+      subLocationId: raw.subLocationId || null,
+      name: String(raw.name).trim(),
+      brand: String(raw.brand || "").trim(),
+      purpose: String(raw.purpose || "").trim(),
+      quantity: qty,
+      minQty: (raw.minQty === null || raw.minQty === undefined || raw.minQty === "") ? null : toQty(raw.minQty),
+      expiry: validDate(raw.expiry),
+      purchase: normalizePurchase(raw.purchase),
+      lastCheckedAt: raw.lastCheckedAt || null,
+      rating: clampRating(raw.rating),
+      createdAt: created,
+      updatedAt: raw.updatedAt || created,
+      status: raw.status === "archived" ? "archived" : "active",
+      archive: null,
+      originId: raw.originId || null,
+      history: (Array.isArray(raw.history) ? raw.history : [])
+        .filter(h => h && typeof h === "object")
+        .map(h => Object.assign({}, h, {
+          date: h.date || created,
+          type: String(h.type || "adjust"),
+          prevQty: toQty(h.prevQty),
+          newQty: toQty(h.newQty)
+        }))
+    };
+    if(it.status === "archived"){
+      const a = raw.archive || {};
+      it.archive = {
+        reason: REASONS.indexOf(a.reason) !== -1 ? a.reason : "usedup",
+        date: a.date || it.updatedAt,
+        note: String(a.note || ""),
+        quantity: toQty(a.quantity != null ? a.quantity : qty)
+      };
+    }
+    if(!it.history.length) it.history = [{ date: created, type: "create", prevQty: 0, newQty: qty }];
+    return it;
+  }
+
+  function readStorage(key){
+    try{ return localStorage.getItem(key); }catch(e){ return null; }
+  }
+
+  function loadState(){
+    let migrated = false;
+    const raw = readStorage(DATA_KEY);
+    if(raw){
+      try{
+        const parsed = JSON.parse(raw);
+        state.locations = Array.isArray(parsed.locations) ? parsed.locations : [];
+        state.items = Array.isArray(parsed.items) ? parsed.items : [];
+        state.meta = normalizeMeta(parsed.meta);
+      }catch(e){
+        state = { locations: [], items: [], meta: defaultMeta() };
+      }
+    }else{
+      state.locations = seedLocations();
+      const legacy = readStorage(LEGACY_ITEMS_KEY);
+      if(legacy){
+        try{
+          const arr = JSON.parse(legacy);
+          if(Array.isArray(arr) && arr.length){ state.items = arr; migrated = true; }
+        }catch(e){ /* 무시 */ }
+      }
+    }
+    state.locations = state.locations.map(normalizeLocation).filter(Boolean);
+    state.items = state.items.map(normalizeItem).filter(Boolean);
+    state.items.forEach(fixLocationRefs);
+    if(migrated){
+      persist();
+      setTimeout(() => toast("위치 기능이 추가됐어요. 기존 물건은 ‘위치 미지정’에 있어요"), 500);
+    }
+  }
+
+  function persist(){
+    try{
+      localStorage.setItem(DATA_KEY, JSON.stringify({ schema: 2, locations: state.locations, items: state.items, meta: state.meta }));
+      const at = nowISO();
+      localStorage.setItem(META_KEY, JSON.stringify({ lastSavedAt: at }));
+      el.lastSavedTime.textContent = formatDateTime(at);
+      el.lastSavedTime.setAttribute("datetime", at);
+      el.saveIndicator.classList.add("saving");
+      setTimeout(() => el.saveIndicator.classList.remove("saving"), 500);
+    }catch(e){
+      toast("저장에 실패했어요 (브라우저 저장공간을 확인해주세요)");
+    }
+  }
+
+  function loadLastSavedLabel(){
+    try{
+      const meta = JSON.parse(readStorage(META_KEY) || "null");
+      el.lastSavedTime.textContent = meta && meta.lastSavedAt ? formatDateTime(meta.lastSavedAt) : "아직 저장 안 됨";
+    }catch(e){
+      el.lastSavedTime.textContent = "-";
+    }
+  }
+
+  /* =========================================================
+     필터 / 정렬
+  ========================================================= */
+  const searchQuery = () => el.searchInput.value.trim().toLowerCase();
+
+  function getFiltered(list){
+    const q = searchQuery();
+    const lf = el.filterLocation.value;
+    return list.filter(it => {
+      if(lf === "__none__"){ if(findLoc(it.locationId)) return false; }
+      else if(lf && it.locationId !== lf) return false;
+      if(!q) return true;
+      const hay = [it.name, it.brand, it.purpose, locPath(it), it.archive ? it.archive.note : "", it.purchase ? it.purchase.store : ""].join(" ").toLowerCase();
+      return hay.indexOf(q) !== -1;
+    });
+  }
+
+  function sortItems(list){
+    const s = el.sortSelect.value;
+    const t = x => new Date(x.createdAt).getTime() || 0;
+    return list.slice().sort((a, b) => {
+      switch(s){
+        case "old": return t(a) - t(b);
+        case "name": return byName(a.name, b.name);
+        case "qtyDesc": return b.quantity - a.quantity;
+        case "qtyAsc": return a.quantity - b.quantity;
+        case "ratingDesc": return b.rating - a.rating;
+        case "ratingAsc": return a.rating - b.rating;
+        case "expiry": {
+          if(a.expiry && b.expiry) return a.expiry.localeCompare(b.expiry);
+          if(a.expiry) return -1;
+          if(b.expiry) return 1;
+          return t(b) - t(a);
+        }
+        default: return t(b) - t(a);
+      }
+    });
+  }
+
+  /* =========================================================
+     분석: 소모 주기 · 중복 · 장보기
+  ========================================================= */
+  /* 같은 이름(공백·대소문자 무시)의 기록을 하나의 '물건 종류'로 보고
+     −버튼 출고 / ‘다 씀’ 정리 기록으로 평균 소모 속도를 계산 */
+  function consumptionStats(members){
+    const seen = new Set();
+    const events = [];
+    members.forEach(it => (it.history || []).forEach(h => {
+      if(h.partialOf) return; // 일부 정리 시 보관함 쪽 복사본 기록은 원본과 중복
+      const p = Number(h.prevQty) || 0, n = Number(h.newQty) || 0;
+      const isUse = h.type === "usedup" || (h.type === "adjust" && n < p);
+      if(!isUse || p - n <= 0) return;
+      const t = new Date(h.date).getTime();
+      if(isNaN(t)) return;
+      const sig = `${h.date}|${h.type}|${p}|${n}`;
+      if(seen.has(sig)) return;
+      seen.add(sig);
+      events.push({ t: t, used: p - n });
+    }));
+    if(events.length < 2) return null;
+    events.sort((a, b) => a.t - b.t);
+    const spanDays = (events[events.length - 1].t - events[0].t) / DAY_MS;
+    if(spanDays < 1) return null;
+    const units = events.slice(1).reduce((s, e) => s + e.used, 0);
+    if(units <= 0) return null;
+    const daysPerUnit = spanDays / units;
+    const active = members.filter(m => m.status === "active");
+    const qty = sumQty(active);
+    const sinceLast = (Date.now() - events[events.length - 1].t) / DAY_MS;
+    const daysLeft = active.length ? Math.max(0, Math.round(qty * daysPerUnit - sinceLast)) : null;
+    return { events: events.length, daysPerUnit: daysPerUnit, qty: qty, daysLeft: daysLeft, active: active };
+  }
+
+  function familyStats(){
+    const fam = {};
+    state.items.forEach(it => { const k = norm(it.name); (fam[k] = fam[k] || []).push(it); });
+    return Object.keys(fam).map(k => {
+      const s = consumptionStats(fam[k]);
+      if(!s) return null;
+      const ref = s.active[0] || fam[k][0];
+      return Object.assign(s, { key: k, name: ref.name, members: fam[k] });
+    }).filter(Boolean);
+  }
+
+  function statsForItem(it){
+    const k = norm(it.name);
+    return consumptionStats(state.items.filter(x => norm(x.name) === k));
+  }
+
+  function predictedDate(daysLeft){
+    const d = new Date(Date.now() + daysLeft * DAY_MS);
+    return `${pad(d.getMonth() + 1)}.${pad(d.getDate())}`;
+  }
+
+  /* 같은 이름의 물건이 2곳 이상에 있으면 중복 그룹 */
+  function duplicateGroups(){
+    const map = {};
+    activeItems().forEach(it => { const k = norm(it.name); (map[k] = map[k] || []).push(it); });
+    return Object.keys(map).filter(k => map[k].length > 1).map(k => {
+      const items = map[k];
+      return { key: k + "::" + items.map(i => i.id).sort().join(","), name: items[0].name, items: items };
+    });
+  }
+  function visibleDupGroups(){
+    const ign = new Set(state.meta.dupIgnored);
+    return duplicateGroups().filter(g => !ign.has(g.key));
+  }
+  function defaultDupTarget(g){
+    return g.items.slice().sort((a, b) => b.quantity - a.quantity)[0];
+  }
+
+  /* 이름은 다르지만 비슷한 물건 (단어 순서만 다름 / 한쪽 이름이 다른 쪽에 포함) */
+  function similarPairs(){
+    const groups = {};
+    activeItems().forEach(it => { const k = norm(it.name); (groups[k] = groups[k] || []).push(it); });
+    const keys = Object.keys(groups);
+    const tokenKey = s => String(s || "").trim().toLowerCase().split(/\s+/).filter(Boolean).sort().join(" ");
+    const pairs = [];
+    for(let i = 0; i < keys.length && pairs.length < 30; i++){
+      for(let j = i + 1; j < keys.length && pairs.length < 30; j++){
+        const a = keys[i], b = keys[j];
+        const sameTokens = tokenKey(groups[a][0].name) === tokenKey(groups[b][0].name);
+        const contains = a.length >= 2 && b.length >= 2 && (a.indexOf(b) !== -1 || b.indexOf(a) !== -1);
+        if(sameTokens || contains) pairs.push([groups[a], groups[b]]);
+      }
+    }
+    return pairs;
+  }
+
+  /* 장보기: 최소 수량 이하 / 소모 예측상 곧 떨어짐 / 소진 */
+  function shopLists(useFilter){
+    const act = useFilter ? getFiltered(activeItems()) : activeItems();
+    const inScope = new Set(act.map(i => i.id));
+    const need = act.filter(needsBuy);
+    const needFamilies = new Set(need.map(i => norm(i.name)));
+    const soon = [];
+    familyStats().forEach(s => {
+      if(!s.active.length || s.qty <= 0 || s.daysLeft === null || s.daysLeft > FORECAST_DAYS) return;
+      if(needFamilies.has(s.key)) return;
+      const it = s.active.slice().sort((a, b) => b.quantity - a.quantity)[0];
+      if(inScope.has(it.id)) soon.push({ it: it, s: s });
+    });
+    const soonIds = new Set(soon.map(x => x.it.id));
+    const out = act.filter(it => isDepleted(it) && !needsBuy(it) && !soonIds.has(it.id));
+    return { need: need, soon: soon, out: out };
+  }
+
+  function expiryCounts(){
+    let past = 0, soon = 0;
+    activeItems().forEach(it => {
+      const s = expiryState(it);
+      if(s && s.level === "past") past++;
+      else if(s && s.level === "soon") soon++;
+    });
+    return { past: past, soon: soon };
+  }
+
+  /* =========================================================
+     접기 / 펼치기 상태 (이 기기에 기억)
+  ========================================================= */
+  const subKey = (locId, subId) => `sub:${locId}:${subId || "__none__"}`;
+
+  function loadUiPrefs(){
+    try{
+      const p = JSON.parse(localStorage.getItem(UI_KEY) || "null");
+      if(p && Array.isArray(p.collapsed)) p.collapsed.forEach(k => { if(typeof k === "string") ui.collapsed.add(k); });
+    }catch(e){ /* 무시 */ }
+  }
+  function saveUiPrefs(){
+    try{ localStorage.setItem(UI_KEY, JSON.stringify({ collapsed: Array.from(ui.collapsed) })); }catch(e){ /* 무시 */ }
+  }
+  /* 검색 중에는 결과가 숨지 않도록 모두 펼쳐서 보여줌 */
+  const isCollapsed = key => !searchQuery() && ui.collapsed.has(key);
+
+  /* 물건을 추가·이동·복원하면 그 위치는 자동으로 펼침 */
+  function revealItem(it){
+    if(!it) return;
+    const key = findLoc(it.locationId) ? it.locationId : "__none__";
+    ui.collapsed.delete("loc:" + key);
+    ui.collapsed.delete(subKey(key, it.subLocationId));
+    if(it.purpose) ui.collapsed.delete("pur:" + it.purpose);
+    saveUiPrefs();
+  }
+
+  function foldAll(mode){
+    const drop = prefix => Array.from(ui.collapsed).forEach(k => { if(k.indexOf(prefix) === 0) ui.collapsed.delete(k); });
+    if(ui.view === "purpose"){
+      drop("pur:");
+      if(mode !== "expand"){
+        new Set(activeItems().map(it => it.purpose || "")).forEach(p => ui.collapsed.add("pur:" + p));
+      }
+    }else{
+      drop("loc:");
+      drop("sub:");
+      if(mode === "subs"){
+        state.locations.forEach(l => {
+          l.subs.forEach(s => ui.collapsed.add(subKey(l.id, s.id)));
+          ui.collapsed.add(subKey(l.id, null));
+        });
+      }else if(mode === "all"){
+        state.locations.forEach(l => ui.collapsed.add("loc:" + l.id));
+        ui.collapsed.add("loc:__none__");
+      }
+    }
+    saveUiPrefs();
+    renderMain();
+  }
+
+  function foldBarHTML(view){
+    if(searchQuery()) return "";
+    const btn = (mode, label) => `<button type="button" class="text-btn" data-act="fold" data-mode="${mode}">${label}</button>`;
+    const sep = '<span class="sep">|</span>';
+    return view === "location"
+      ? `<div class="fold-bar">${btn("expand", "모두 펼치기")}${sep}${btn("subs", "세부 위치만 접기")}${sep}${btn("all", "모두 접기")}</div>`
+      : `<div class="fold-bar">${btn("expand", "모두 펼치기")}${sep}${btn("all", "모두 접기")}</div>`;
+  }
+
+  function countBadges(items){
+    const dep = items.filter(isDepleted).length;
+    const buy = items.filter(it => needsBuy(it) && !isDepleted(it)).length;
+    return (dep ? `<span class="badge badge-danger">소진 ${dep}</span>` : "") +
+      (buy ? `<span class="badge badge-warn">구매 필요 ${buy}</span>` : "");
+  }
+
+  /* =========================================================
+     렌더링
+  ========================================================= */
+  function renderLocationFilter(){
+    const cur = el.filterLocation.value;
+    const hasUnassigned = state.items.some(it => !findLoc(it.locationId));
+    el.filterLocation.innerHTML = '<option value="">위치 전체</option>' +
+      state.locations.map(l => `<option value="${esc(l.id)}">${esc(l.name)}</option>`).join("") +
+      (hasUnassigned ? '<option value="__none__">위치 미지정</option>' : "");
+    const valid = Array.prototype.some.call(el.filterLocation.options, o => o.value === cur);
+    el.filterLocation.value = valid ? cur : "";
+  }
+
+  function renderStats(){
+    const act = activeItems();
+    const depleted = act.filter(isDepleted).length;
+    const archived = archivedItems().length;
+    el.statCount.textContent = num(act.length);
+    el.statQty.textContent = num(sumQty(act));
+    el.statDepleted.textContent = num(depleted);
+    el.statDepleted.classList.toggle("warn", depleted > 0);
+    el.statArchived.textContent = num(archived);
+    el.archiveTabCount.textContent = archived ? String(archived) : "";
+
+    const shop = shopLists(false);
+    const shopCount = shop.need.length + shop.soon.length + shop.out.length;
+    const exp = expiryCounts();
+    const dups = visibleDupGroups().length;
+    el.shopTabCount.textContent = shopCount ? String(shopCount) : "";
+    el.checkTabCount.textContent = (exp.past + exp.soon + dups) ? String(exp.past + exp.soon + dups) : "";
+
+    const chips = [];
+    if(shop.need.length) chips.push(`<button type="button" class="alert-chip" data-act="goto" data-view="shop">구매 필요 ${shop.need.length}</button>`);
+    if(shop.soon.length) chips.push(`<button type="button" class="alert-chip" data-act="goto" data-view="shop">곧 떨어짐 ${shop.soon.length}</button>`);
+    if(exp.past) chips.push(`<button type="button" class="alert-chip danger" data-act="goto" data-view="check" data-check="expiry">기한 지남 ${exp.past}</button>`);
+    if(exp.soon) chips.push(`<button type="button" class="alert-chip" data-act="goto" data-view="check" data-check="expiry">기한 임박 ${exp.soon}</button>`);
+    if(dups) chips.push(`<button type="button" class="alert-chip info" data-act="goto" data-view="check" data-check="dup">중복 의심 ${dups}</button>`);
+    el.alertStrip.innerHTML = chips.join("");
+    el.alertStrip.hidden = !chips.length;
+  }
+
+  function emptyHTML(title, desc, act, label){
+    return `<div class="empty-state"><h3>${esc(title)}</h3><p>${esc(desc)}</p>` +
+      (act ? `<button type="button" class="btn btn-primary" data-act="${act}">${esc(label)}</button>` : "") + `</div>`;
+  }
+
+  function itemRowHTML(it, opts){
+    opts = opts || {};
+    const id = esc(it.id);
+    const dep = isDepleted(it);
+    const meta = [];
+    if(it.brand) meta.push(esc(it.brand));
+    if(opts.showLocation) meta.push(esc(locPath(it)));
+    return `<div class="item-row${opts.indent ? " indent" : ""}${dep ? " is-depleted" : ""}">
+      <div class="item-top">
+        <div class="item-name-wrap">
+          <span class="item-name">${esc(it.name)}</span>
+          ${meta.length ? `<span class="item-meta">${meta.join(" · ")}</span>` : ""}
+        </div>
+        <div class="qty-stepper">
+          <button type="button" class="step-btn" data-act="dec" data-id="${id}" aria-label="수량 줄이기">−</button>
+          <span class="qty-value">${num(it.quantity)}</span>
+          <button type="button" class="step-btn" data-act="inc" data-id="${id}" aria-label="수량 늘리기">+</button>
+        </div>
+      </div>
+      <div class="item-bottom">
+        <span class="stars" aria-label="평가 ${it.rating}점">${starsHTML(it.rating)}</span>
+        ${opts.showPurpose && it.purpose ? `<span class="tag">${esc(it.purpose)}</span>` : ""}
+        ${dep ? '<span class="badge badge-danger">소진</span>' : ""}
+        ${needsBuy(it) ? '<span class="badge badge-warn">구매 필요</span>' : ""}
+        ${expiryBadge(it)}
+        <span class="item-actions">
+          <button type="button" class="mini-btn" data-act="history" data-id="${id}">이력</button>
+          <button type="button" class="mini-btn" data-act="edit" data-id="${id}">수정</button>
+          <button type="button" class="mini-btn" data-act="archive" data-id="${id}">정리</button>
+        </span>
+      </div>
+    </div>`;
+  }
+
+  function groupHTML(key, title, items, body){
+    const collapsed = isCollapsed(key);
+    const meta = items.length ? `${items.length}개 품목 · 총 ${num(sumQty(items))}개` : "비어 있음";
+    return `<section class="group${collapsed ? " collapsed" : ""}">
+      <button type="button" class="group-header" data-act="toggle" data-key="${esc(key)}" aria-expanded="${!collapsed}">
+        <span class="group-title">${esc(title)}</span>
+        <span class="group-right">
+          <span class="group-meta">${meta}</span>
+          ${countBadges(items)}
+          <span class="group-chevron" aria-hidden="true">⌄</span>
+        </span>
+      </button>
+      <div class="group-body">${body}</div>
+    </section>`;
+  }
+
+  /* 세부 위치 한 칸: 헤더(누르면 접기/펼치기) + 그 안의 물건들 */
+  function subSectionHTML(loc, sub, items){
+    const key = subKey(loc.id, sub ? sub.id : null);
+    const has = items.length > 0;
+    const collapsed = has && isCollapsed(key);
+    const label = has ? `${items.length}품목 · ${num(sumQty(items))}개` : "비어 있음";
+    const rows = sortItems(items).map(it => itemRowHTML(it, { indent: true, showPurpose: true })).join("");
+    return `<div class="sub-section${collapsed ? " collapsed" : ""}">
+      <div class="sub-header${sub ? "" : " is-none"}">
+        <button type="button" class="sub-toggle" ${has ? `data-act="toggle" data-key="${esc(key)}" aria-expanded="${!collapsed}"` : "disabled"}>
+          <span class="sub-chevron" aria-hidden="true">${has ? "⌄" : ""}</span>
+          <span class="sub-name">${sub ? esc(sub.name) : "세부 위치 없음"}</span>
+        </button>
+        <span class="sub-right">
+          ${countBadges(items)}
+          <span class="sub-count">${label}</span>
+          ${sub ? `<button type="button" class="sub-add" data-act="add-here" data-loc="${esc(loc.id)}" data-sub="${esc(sub.id)}" aria-label="${esc(sub.name)}에 물건 추가">+</button>` : ""}
+        </span>
+      </div>
+      <div class="sub-body">${rows}</div>
+    </div>`;
+  }
+
+  function renderLocationView(){
+    const all = activeItems();
+    const q = searchQuery();
+    const lf = el.filterLocation.value;
+    if(!state.locations.length && !all.length){
+      return emptyHTML("위치를 먼저 만들어 보세요", "거실·안방 같은 큰 위치와 옷장·서랍 같은 세부 위치를 등록하면 물건을 위치별로 정리할 수 있어요.", "manage-loc", "위치 관리 열기");
+    }
+    const list = getFiltered(all);
+    const byLoc = {};
+    const unassigned = [];
+    list.forEach(it => {
+      if(findLoc(it.locationId)) (byLoc[it.locationId] = byLoc[it.locationId] || []).push(it);
+      else unassigned.push(it);
+    });
+    let blocks = state.locations.map(loc => ({ key: loc.id, loc: loc, items: byLoc[loc.id] || [] }));
+    if(unassigned.length) blocks.push({ key: "__none__", loc: null, items: unassigned });
+    if(lf) blocks = blocks.filter(b => b.key === lf);
+    if(q) blocks = blocks.filter(b => b.items.length);
+    if(!blocks.length) return emptyHTML("검색 결과가 없습니다", "다른 검색어나 필터를 사용해 보세요.");
+
+    return foldBarHTML("location") + blocks.map(b => {
+      let body = "";
+      if(b.loc && b.loc.subs.length){
+        const bySub = {};
+        const noSub = [];
+        b.items.forEach(it => {
+          if(findSub(b.loc, it.subLocationId)) (bySub[it.subLocationId] = bySub[it.subLocationId] || []).push(it);
+          else noSub.push(it);
+        });
+        b.loc.subs.forEach(sub => {
+          const subItems = bySub[sub.id] || [];
+          if(q && !subItems.length) return;
+          body += subSectionHTML(b.loc, sub, subItems);
+        });
+        if(noSub.length) body += subSectionHTML(b.loc, null, noSub);
+      }else if(b.items.length){
+        body += sortItems(b.items).map(it => itemRowHTML(it, { showPurpose: true })).join("");
+      }else{
+        body += '<div class="group-empty">아직 등록된 물건이 없어요</div>';
+      }
+      if(b.loc){
+        body += `<button type="button" class="add-here" data-act="add-here" data-loc="${esc(b.loc.id)}">+ ${esc(b.loc.name)}에 물건 추가</button>`;
+      }else{
+        body += '<div class="group-hint">‘수정’을 눌러 위치를 지정해 주세요</div>';
+      }
+      return groupHTML("loc:" + b.key, b.loc ? b.loc.name : "위치 미지정", b.items, body);
+    }).join("");
+  }
+
+  function renderPurposeView(){
+    const all = activeItems();
+    if(!all.length) return emptyHTML("등록된 물건이 없습니다", "새 항목을 추가하면 용도별로 묶여서 보여요.", "add", "+ 새 항목");
+    const list = getFiltered(all);
+    if(!list.length) return emptyHTML("검색 결과가 없습니다", "다른 검색어나 필터를 사용해 보세요.");
+    const groups = {};
+    const order = [];
+    list.forEach(it => {
+      const p = it.purpose || "";
+      if(!groups[p]){ groups[p] = []; order.push(p); }
+      groups[p].push(it);
+    });
+    order.sort((a, b) => { if(!a) return 1; if(!b) return -1; return byName(a, b); });
+    return foldBarHTML("purpose") + order.map(p => {
+      const items = groups[p];
+      const body = sortItems(items).map(it => itemRowHTML(it, { showLocation: true })).join("");
+      return groupHTML("pur:" + p, p || "용도 미지정", items, body);
+    }).join("");
+  }
+
+  function renderFlatView(){
+    const all = activeItems();
+    if(!all.length) return emptyHTML("등록된 물건이 없습니다", "새 항목을 추가해 보세요.", "add", "+ 새 항목");
+    const list = getFiltered(all);
+    if(!list.length) return emptyHTML("검색 결과가 없습니다", "다른 검색어나 필터를 사용해 보세요.");
+    return `<div class="list-box">${sortItems(list).map(it => itemRowHTML(it, { showLocation: true, showPurpose: true })).join("")}</div>`;
+  }
+
+  function archiveRowHTML(r){
+    const id = esc(r.id);
+    const a = r.archive;
+    const meta = [r.brand, locPath(r)].filter(Boolean).map(esc).join(" · ");
+    return `<div class="item-row">
+      <div class="item-top">
+        <div class="item-name-wrap">
+          <span class="item-name">${esc(r.name)}</span>
+          <span class="item-meta">${meta}</span>
+        </div>
+        <span class="badge badge-${a.reason}">${REASON_LABELS[a.reason]}</span>
+      </div>
+      <div class="item-bottom">
+        <span class="archive-info">${formatDate(a.date)} · ${num(a.quantity)}개</span>
+        ${a.note ? `<span class="archive-note">${esc(a.note)}</span>` : ""}
+        <span class="item-actions">
+          <button type="button" class="mini-btn" data-act="history" data-id="${id}">이력</button>
+          <button type="button" class="mini-btn" data-act="restore" data-id="${id}">복원</button>
+          <button type="button" class="mini-btn danger" data-act="purge" data-id="${id}">삭제</button>
+        </span>
+      </div>
+    </div>`;
+  }
+
+  function renderArchiveView(){
+    const all = archivedItems();
+    if(!all.length) return emptyHTML("보관함이 비어 있어요", "다 쓰거나 버린 물건에서 ‘정리’를 누르면 날짜와 함께 이곳에 기록돼요.");
+    const counts = {
+      all: all.length,
+      usedup: all.filter(r => r.archive.reason === "usedup").length,
+      discarded: all.filter(r => r.archive.reason === "discarded").length,
+      lost: all.filter(r => r.archive.reason === "lost").length
+    };
+    const chips = '<div class="chips">' + [["all","전체"],["usedup","다 씀"],["discarded","버림"],["lost","없어짐"]]
+      .filter(c => c[0] !== "lost" || counts.lost).map(c =>
+      `<button type="button" class="chip${ui.archiveFilter === c[0] ? " active" : ""}" data-act="archive-filter" data-value="${c[0]}">${c[1]} ${counts[c[0]]}</button>`
+    ).join("") + "</div>";
+    const list = getFiltered(all)
+      .filter(r => ui.archiveFilter === "all" || r.archive.reason === ui.archiveFilter)
+      .sort((a, b) => new Date(b.archive.date) - new Date(a.archive.date));
+    if(!list.length) return chips + emptyHTML("해당하는 기록이 없습니다", "다른 검색어나 필터를 사용해 보세요.");
+    return chips + `<div class="list-box">${list.map(archiveRowHTML).join("")}</div>`;
+  }
+
+  /* ---------- 장보기 ---------- */
+  function shopRowHTML(it, badge){
+    const id = esc(it.id);
+    const lp = lastPurchaseText(it);
+    return `<div class="item-row">
+      <div class="item-top">
+        <div class="item-name-wrap">
+          <span class="item-name">${esc(it.name)}</span>
+          <span class="item-meta">${[it.brand, locPath(it)].filter(Boolean).map(esc).join(" · ")}</span>
+        </div>
+        <span class="shop-qty">${num(it.quantity)}개${it.minQty !== null ? ` / 최소 ${num(it.minQty)}` : ""}</span>
+      </div>
+      <div class="item-bottom">
+        ${badge}
+        ${lp ? `<span class="archive-info">${esc(lp)}</span>` : ""}
+        <span class="item-actions">
+          <button type="button" class="mini-btn" data-act="edit" data-id="${id}">수정</button>
+          <button type="button" class="mini-btn primary" data-act="restock" data-id="${id}">구매함</button>
+        </span>
+      </div>
+    </div>`;
+  }
+
+  function renderShopView(){
+    const s = shopLists(true);
+    const total = s.need.length + s.soon.length + s.out.length;
+    if(!total){
+      return emptyHTML("지금 살 건 없어요",
+        "물건마다 ‘최소 수량’을 정해두면 그 수량 이하로 줄었을 때 여기에 자동으로 올라와요. 쓸 때마다 −를 누르면 곧 떨어질 물건도 미리 알려줘요.");
+    }
+    let html = `<div class="view-head"><p class="panel-intro">‘구매함’을 누르면 수량이 늘고 구매일·가격·구매처가 기록돼요.</p>
+      <button type="button" class="btn btn-ghost btn-sm" data-act="copy-shop">목록 복사</button></div>`;
+    if(s.need.length){
+      html += `<div class="section-title">구매 필요 <small>최소 수량 이하 · ${s.need.length}개</small></div>`;
+      html += `<div class="list-box">${sortItems(s.need).map(it => shopRowHTML(it, '<span class="badge badge-warn">최소 수량 이하</span>')).join("")}</div>`;
+    }
+    if(s.soon.length){
+      html += `<div class="section-title">곧 떨어질 것 같아요 <small>사용 기록 기반 예측 · ${s.soon.length}개</small></div>`;
+      html += `<div class="list-box">${s.soon.sort((a, b) => a.s.daysLeft - b.s.daysLeft).map(x =>
+        shopRowHTML(x.it, `<span class="badge badge-muted">약 ${x.s.daysLeft}일 후 소진 예상</span>`)).join("")}</div>`;
+    }
+    if(s.out.length){
+      html += `<div class="section-title">소진 <small>0개 · ${s.out.length}개</small></div>`;
+      html += `<div class="list-box">${sortItems(s.out).map(it => shopRowHTML(it, '<span class="badge badge-danger">소진</span>')).join("")}</div>`;
+    }
+    return html;
+  }
+
+  function shopListText(){
+    const s = shopLists(true);
+    const line = (it, extra) => {
+      const bits = [it.brand, locPath(it)].filter(Boolean).join(" · ");
+      const store = it.purchase && it.purchase.store ? ` · 지난번 ${it.purchase.store}` : "";
+      return `□ ${it.name} (${extra}) - ${bits}${store}`;
+    };
+    const lines = [`[장보기 목록] ${formatYMD(todayStr())}`];
+    s.need.forEach(it => lines.push(line(it, `현재 ${it.quantity} / 최소 ${it.minQty}`)));
+    s.soon.forEach(x => lines.push(line(x.it, `약 ${x.s.daysLeft}일 후 소진`)));
+    s.out.forEach(it => lines.push(line(it, "소진")));
+    return lines.join("\n");
+  }
+
+  function copyText(text, okMsg){
+    const fallback = () => {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.setAttribute("readonly", "");
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      let ok = false;
+      try{ ok = document.execCommand("copy"); }catch(e){ ok = false; }
+      document.body.removeChild(ta);
+      toast(ok ? okMsg : "복사하지 못했어요. 브라우저 권한을 확인해 주세요");
+    };
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).then(() => toast(okMsg), fallback);
+    }else{
+      fallback();
+    }
+  }
+
+  /* ---------- 점검: 기한 ---------- */
+  function renderExpiryView(){
+    const list = getFiltered(activeItems()).filter(it => it.expiry).sort((a, b) => a.expiry.localeCompare(b.expiry));
+    if(!list.length){
+      return emptyHTML("기한이 등록된 물건이 없어요", "식품·약·화장품처럼 기한이 있는 물건은 추가·수정 화면에서 ‘유통·사용기한’을 넣어 주세요.");
+    }
+    const past = list.filter(it => expiryState(it).level === "past");
+    const soon = list.filter(it => expiryState(it).level === "soon");
+    const later = list.filter(it => expiryState(it).level === "ok");
+    const sec = (title, sub, arr) => arr.length
+      ? `<div class="section-title">${title} <small>${sub} · ${arr.length}개</small></div><div class="list-box">${arr.map(it => itemRowHTML(it, { showLocation: true })).join("")}</div>`
+      : "";
+    return sec("기한 지남", "확인 후 정리해 주세요", past) +
+      sec("곧 기한", `${EXPIRY_SOON_DAYS}일 이내`, soon) +
+      sec("여유 있음", "기한 순", later);
+  }
+
+  /* ---------- 점검: 중복 ---------- */
+  function renderDupView(){
+    const groups = duplicateGroups();
+    const ign = new Set(state.meta.dupIgnored);
+    const visible = groups.filter(g => !ign.has(g.key));
+    const hiddenCount = groups.length - visible.length;
+    const pairs = similarPairs();
+    if(!groups.length && !pairs.length){
+      return emptyHTML("중복된 물건이 없어요", "같은 이름의 물건이 여러 곳에 흩어져 있으면 여기에 모아서 보여줘요.");
+    }
+    let html = `<p class="panel-intro">같은 이름의 물건이 여러 곳에 있어요. 한 곳으로 모으면 수량이 합쳐지고 나머지 항목은 정리돼요.</p>`;
+    visible.forEach((g, gi) => {
+      const target = ui.dupTargets[g.key] || defaultDupTarget(g).id;
+      html += `<div class="dup-card">
+        <div class="dup-card-head"><strong>${esc(g.name)}</strong><span class="group-meta">${g.items.length}곳 · 총 ${num(sumQty(g.items))}개</span></div>
+        ${g.items.map(it => `<label class="dup-option">
+          <input type="radio" name="dup-${gi}" data-act="dup-target" data-key="${esc(g.key)}" data-id="${esc(it.id)}" ${it.id === target ? "checked" : ""}>
+          <span class="grow"><span class="item-name">${esc(locPath(it))}</span>${it.brand ? `<span class="item-meta">${esc(it.brand)}</span>` : ""}</span>
+          <span class="shop-qty">${num(it.quantity)}개</span>
+        </label>`).join("")}
+        <div class="dup-card-foot">
+          <button type="button" class="mini-btn" data-act="dup-ignore" data-key="${esc(g.key)}">따로 둘게요</button>
+          <button type="button" class="mini-btn primary" data-act="dup-merge" data-key="${esc(g.key)}">선택한 곳으로 합치기</button>
+        </div>
+      </div>`;
+    });
+    if(!visible.length && groups.length) html += `<p class="panel-intro">확인이 필요한 중복은 없어요.</p>`;
+    if(hiddenCount) html += `<button type="button" class="text-btn" data-act="dup-unignore">‘따로 둘게요’로 숨긴 ${hiddenCount}건 다시 보기</button>`;
+    if(pairs.length){
+      html += `<div class="section-title" style="margin-top:22px">비슷한 이름 <small>같은 물건이면 ‘수정’에서 이름을 맞춰 주세요</small></div>`;
+      html += pairs.map(pair => `<div class="dup-card">${pair.map(arr => arr.map(it => `<div class="pair-row">
+          <span class="grow"><span class="item-name">${esc(it.name)}</span><span class="item-meta">${esc(locPath(it))} · ${num(it.quantity)}개</span></span>
+          <button type="button" class="mini-btn" data-act="edit" data-id="${esc(it.id)}">수정</button>
+        </div>`).join("")).join("")}</div>`).join("");
+    }
+    return html;
+  }
+
+  /* ---------- 점검: 재고 실사 ---------- */
+  function auditStartTime(){
+    const t = new Date(state.meta.auditStartedAt).getTime();
+    return state.meta.auditStartedAt && !isNaN(t) ? t : null;
+  }
+  function isAudited(it){
+    const start = auditStartTime();
+    if(start === null || !it.lastCheckedAt) return false;
+    return new Date(it.lastCheckedAt).getTime() >= start;
+  }
+  function lastCheckLabel(it){
+    const d = daysSince(it.lastCheckedAt);
+    if(d === null) return "확인 기록 없음";
+    if(d === 0) return "오늘 확인";
+    return `마지막 확인 ${d}일 전`;
+  }
+  function locOrder(it){
+    const li = state.locations.findIndex(l => l.id === it.locationId);
+    const loc = findLoc(it.locationId);
+    const si = loc ? loc.subs.findIndex(s => s.id === it.subLocationId) : -1;
+    return [li === -1 ? 9999 : li, si === -1 ? 9999 : si];
+  }
+
+  function auditRowHTML(it){
+    const id = esc(it.id);
+    const done = isAudited(it);
+    const loc = findLoc(it.locationId);
+    const sub = findSub(loc, it.subLocationId);
+    const stale = daysSince(it.lastCheckedAt);
+    const isStale = stale === null || stale >= STALE_DAYS;
+    return `<div class="item-row${done ? " is-checked" : ""}">
+      <div class="item-top">
+        <div class="item-name-wrap">
+          <span class="item-name">${esc(it.name)}</span>
+          <span class="item-meta">${[it.brand, sub ? sub.name : (loc ? "세부 위치 없음" : "")].filter(Boolean).map(esc).join(" · ")}</span>
+        </div>
+        <div class="qty-stepper">
+          <button type="button" class="step-btn" data-act="dec" data-id="${id}" aria-label="수량 줄이기">−</button>
+          <span class="qty-value">${num(it.quantity)}</span>
+          <button type="button" class="step-btn" data-act="inc" data-id="${id}" aria-label="수량 늘리기">+</button>
+        </div>
+      </div>
+      <div class="item-bottom">
+        <span class="archive-info">${lastCheckLabel(it)}</span>
+        ${!done && isStale ? '<span class="badge badge-warn">오래 확인 안 함</span>' : ""}
+        <span class="item-actions">
+          <button type="button" class="mini-btn" data-act="audit-missing" data-id="${id}">없어요</button>
+          ${done
+            ? '<button type="button" class="mini-btn done" tabindex="-1">✓ 확인됨</button>'
+            : `<button type="button" class="mini-btn primary" data-act="audit-check" data-id="${id}">있어요 ✓</button>`}
+        </span>
+      </div>
+    </div>`;
+  }
+
+  function renderAuditView(){
+    const scope = getFiltered(activeItems());
+    const start = state.meta.auditStartedAt;
+    const doneCount = scope.filter(isAudited).length;
+    const staleCount = scope.filter(it => { const d = daysSince(it.lastCheckedAt); return d === null || d >= STALE_DAYS; }).length;
+    const pct = scope.length ? Math.round(doneCount / scope.length * 100) : 0;
+    let html = '<div class="audit-bar">';
+    if(start){
+      html += `<div class="label-row"><strong>${formatDate(start)}에 시작한 실사</strong><span>${doneCount} / ${scope.length} 확인 (${pct}%)</span></div>
+        <div class="progress"><span style="width:${pct}%"></span></div>`;
+    }else{
+      html += `<p class="panel-intro">방을 돌면서 물건이 실제로 있는지 하나씩 확인해요. 위쪽 위치 필터로 방 하나씩 진행할 수 있고, 확인 날짜가 남아서 오래 안 본 물건을 찾을 수 있어요.</p>`;
+    }
+    html += `<div class="audit-actions">
+        <button type="button" class="btn btn-primary btn-sm" data-act="audit-start">${start ? "새 실사 시작" : "실사 시작"}</button>
+        <label class="toggle"><input type="checkbox" data-act="audit-toggle" ${ui.auditUncheckedOnly ? "checked" : ""}> 미확인만 보기</label>
+        <span class="stat-line">${STALE_DAYS}일 넘게 확인 안 한 물건 <strong>${staleCount}</strong>개</span>
+      </div></div>`;
+    if(!scope.length) return html + emptyHTML("확인할 물건이 없어요", "물건을 추가하거나 필터를 바꿔 보세요.");
+
+    const list = (ui.auditUncheckedOnly ? scope.filter(it => !isAudited(it)) : scope).slice().sort((a, b) => {
+      const oa = locOrder(a), ob = locOrder(b);
+      return (oa[0] - ob[0]) || (oa[1] - ob[1]) || byName(a.name, b.name);
+    });
+    if(!list.length) return html + emptyHTML("모두 확인했어요", "이번 실사에서 확인할 물건을 다 봤어요.");
+
+    const groups = [];
+    list.forEach(it => {
+      const key = findLoc(it.locationId) ? it.locationId : "__none__";
+      let g = groups[groups.length - 1];
+      if(!g || g.key !== key){ g = { key: key, items: [] }; groups.push(g); }
+      g.items.push(it);
+    });
+    groups.forEach(g => {
+      const loc = findLoc(g.key);
+      const inLoc = scope.filter(it => (findLoc(it.locationId) ? it.locationId : "__none__") === g.key);
+      html += `<div class="section-title">${esc(loc ? loc.name : "위치 미지정")} <small>${inLoc.filter(isAudited).length} / ${inLoc.length} 확인</small></div>`;
+      html += `<div class="list-box">${g.items.map(auditRowHTML).join("")}</div>`;
+    });
+    return html;
+  }
+
+  /* ---------- 점검: 소모 주기 ---------- */
+  function renderCycleView(){
+    const q = searchQuery();
+    const lf = el.filterLocation.value;
+    let stats = familyStats();
+    if(q) stats = stats.filter(s => s.name.toLowerCase().indexOf(q) !== -1);
+    if(lf) stats = stats.filter(s => s.members.some(m => lf === "__none__" ? !findLoc(m.locationId) : m.locationId === lf));
+    if(!stats.length){
+      return emptyHTML("아직 계산할 기록이 부족해요",
+        "물건을 쓸 때마다 −를 누르거나 ‘정리 → 다 씀’을 하면, 사용 기록이 2번 이상(하루 이상 간격) 쌓인 물건부터 평균 소모 주기와 소진 예상일을 알려줘요.");
+    }
+    stats.sort((a, b) => {
+      const da = a.daysLeft === null ? Infinity : a.daysLeft;
+      const db = b.daysLeft === null ? Infinity : b.daysLeft;
+      return da - db;
+    });
+    const rows = stats.map(s => {
+      let right, line;
+      if(s.daysLeft === null){
+        right = `<div class="big-num">-<small>보유 안 함</small></div>`;
+        line = "지금은 보관함에만 있어요";
+      }else if(s.qty === 0){
+        right = `<div class="big-num" style="color:var(--danger)">0개<small>지금 없음</small></div>`;
+        line = "다 떨어졌어요";
+      }else{
+        right = `<div class="big-num">${s.daysLeft}일<small>${predictedDate(s.daysLeft)} 예상</small></div>`;
+        line = `현재 ${num(s.qty)}개 · 약 ${s.daysLeft}일 후 소진 예상`;
+      }
+      const target = s.active[0];
+      return `<div class="item-row">
+        <div class="item-top">
+          <div class="item-name-wrap">
+            <span class="item-name">${esc(s.name)}</span>
+            <span class="item-meta">평균 ${fmtRate(s.daysPerUnit)} · 사용 기록 ${s.events}회</span>
+          </div>
+          ${right}
+        </div>
+        <div class="item-bottom">
+          <span class="archive-info">${line}</span>
+          ${target ? `<span class="item-actions"><button type="button" class="mini-btn" data-act="history" data-id="${esc(target.id)}">이력</button><button type="button" class="mini-btn primary" data-act="restock" data-id="${esc(target.id)}">구매함</button></span>` : ""}
+        </div>
+      </div>`;
+    }).join("");
+    return `<p class="panel-intro">−버튼과 ‘다 씀’ 기록으로 계산한 평균 사용 속도예요. 기록이 쌓일수록 정확해져요.</p><div class="list-box">${rows}</div>`;
+  }
+
+  function renderCheckView(){
+    const exp = expiryCounts();
+    const dupCount = visibleDupGroups().length;
+    const tabs = [
+      ["expiry", "기한", exp.past + exp.soon],
+      ["dup", "중복", dupCount],
+      ["audit", "재고 실사", 0],
+      ["cycle", "소모 주기", 0]
+    ];
+    const chips = '<div class="chips">' + tabs.map(t =>
+      `<button type="button" class="chip${ui.checkTab === t[0] ? " active" : ""}" data-act="check-tab" data-value="${t[0]}">${t[1]}${t[2] ? " " + t[2] : ""}</button>`
+    ).join("") + "</div>";
+    let body;
+    switch(ui.checkTab){
+      case "dup": body = renderDupView(); break;
+      case "audit": body = renderAuditView(); break;
+      case "cycle": body = renderCycleView(); break;
+      default: body = renderExpiryView();
+    }
+    return chips + body;
+  }
+
+  function renderMain(){
+    el.mainContent.querySelectorAll(".view-tab").forEach(tab => {
+      tab.classList.toggle("active", tab.getAttribute("data-view") === ui.view);
+    });
+    el.sortSelect.disabled = ui.view === "archive" || ui.view === "shop" || ui.view === "check";
+    let html;
+    switch(ui.view){
+      case "archive": html = renderArchiveView(); break;
+      case "shop": html = renderShopView(); break;
+      case "check": html = renderCheckView(); break;
+      case "purpose": html = renderPurposeView(); break;
+      case "flat": html = renderFlatView(); break;
+      default: html = renderLocationView();
+    }
+    el.viewContainer.innerHTML = html;
+  }
+
+  function renderAll(){
+    renderLocationFilter();
+    renderStats();
+    renderMain();
+  }
+
+  /* =========================================================
+     모달 공통
+  ========================================================= */
+  function syncBodyLock(){
+    document.body.classList.toggle("modal-open", !!document.querySelector(".modal-backdrop.is-open"));
+  }
+  function openModal(b){ b.classList.add("is-open"); syncBodyLock(); }
+  function closeModal(b){ b.classList.remove("is-open"); syncBodyLock(); }
+
+  /* =========================================================
+     수량 빠른 증감
+  ========================================================= */
+  function adjustQuantity(id, delta){
+    const it = findItem(id);
+    if(!it || it.status !== "active") return;
+    const prev = it.quantity;
+    const next = Math.max(0, prev + delta);
+    if(next === prev) return;
+    it.quantity = next;
+    it.updatedAt = nowISO();
+    it.lastCheckedAt = nowISO();
+    // 1분 안에 연속으로 누른 조정은 하나의 기록으로 묶기
+    const last = it.history[0];
+    if(last && last.type === "adjust" && (Date.now() - new Date(last.date).getTime()) < 60000){
+      last.newQty = next;
+      last.date = nowISO();
+      if(last.newQty === last.prevQty) it.history.shift();
+    }else{
+      logHistory(it, { type: "adjust", prevQty: prev, newQty: next });
+    }
+    persist();
+    renderAll();
+    if(next === 0) toast("0개가 됐어요 · 다 썼다면 ‘정리’로 보관함에 옮길 수 있어요");
+  }
+
+  /* =========================================================
+     별점 입력
+  ========================================================= */
+  function buildStarInput(){
+    let html = "";
+    for(let i = 1; i <= 5; i++){
+      html += `<button type="button" class="star-btn" data-value="${i}" role="radio" aria-label="${i}점">★</button>`;
+    }
+    el.starInput.innerHTML = html;
+    el.starInput.addEventListener("click", ev => {
+      const b = ev.target.closest(".star-btn");
+      if(b) setRating(Number(b.getAttribute("data-value")));
+    });
+  }
+  function setRating(v){
+    v = clampRating(v);
+    el.fieldRating.value = v;
+    el.starInput.querySelectorAll(".star-btn").forEach(b => {
+      const bv = Number(b.getAttribute("data-value"));
+      b.classList.toggle("filled", bv <= v);
+      b.setAttribute("aria-checked", bv === v ? "true" : "false");
+    });
+    el.ratingCaption.textContent = RATING_LABELS[v];
+  }
+
+  /* =========================================================
+     위치 추가 (공용)
+  ========================================================= */
+  function addLocation(name){
+    name = String(name || "").trim();
+    const exist = state.locations.find(l => norm(l.name) === norm(name));
+    if(exist){ toast("이미 있는 위치라 기존 위치를 선택했어요"); return exist; }
+    const loc = { id: uid(), name: name, subs: [] };
+    state.locations.push(loc);
+    persist();
+    toast(`‘${name}’ 위치를 추가했어요`);
+    return loc;
+  }
+  function addSubLocation(loc, name){
+    name = String(name || "").trim();
+    const exist = loc.subs.find(s => norm(s.name) === norm(name));
+    if(exist){ toast("이미 있는 세부 위치라 기존 것을 선택했어요"); return exist; }
+    const sub = { id: uid(), name: name };
+    loc.subs.push(sub);
+    persist();
+    toast(`‘${loc.name} › ${name}’을(를) 추가했어요`);
+    return sub;
+  }
+
+  /* =========================================================
+     항목 추가/수정 모달
+  ========================================================= */
+  function fillLocationSelect(locId, subId){
+    el.fieldLocation.innerHTML = '<option value="">위치 선택</option>' +
+      state.locations.map(l => `<option value="${esc(l.id)}">${esc(l.name)}</option>`).join("") +
+      '<option value="__new__">+ 새 위치 추가…</option>';
+    el.fieldLocation.value = findLoc(locId) ? locId : "";
+    ui.prevLocValue = el.fieldLocation.value;
+    el.locNewRow.hidden = true;
+    fillSubSelect(subId);
+  }
+  function fillSubSelect(subId){
+    const loc = findLoc(el.fieldLocation.value);
+    el.subNewRow.hidden = true;
+    if(!loc){
+      el.fieldSub.innerHTML = '<option value="">큰 위치를 먼저 선택하세요</option>';
+      el.fieldSub.disabled = true;
+      ui.prevSubValue = "";
+      return;
+    }
+    el.fieldSub.disabled = false;
+    el.fieldSub.innerHTML = '<option value="">세부 위치 없음</option>' +
+      loc.subs.map(s => `<option value="${esc(s.id)}">${esc(s.name)}</option>`).join("") +
+      '<option value="__new__">+ 새 세부 위치 추가…</option>';
+    el.fieldSub.value = findSub(loc, subId) ? subId : "";
+    ui.prevSubValue = el.fieldSub.value;
+  }
+  function fillPurposeList(){
+    const ps = Array.from(new Set(state.items.map(it => it.purpose).filter(Boolean))).sort(byName);
+    el.purposeList.innerHTML = ps.map(p => `<option value="${esc(p)}"></option>`).join("");
+  }
+  function fillStoreList(){
+    const stores = new Set();
+    state.items.forEach(it => {
+      if(it.purchase && it.purchase.store) stores.add(it.purchase.store);
+      (it.history || []).forEach(h => { if(h.store) stores.add(h.store); });
+    });
+    el.storeList.innerHTML = Array.from(stores).sort(byName).map(s => `<option value="${esc(s)}"></option>`).join("");
+  }
+
+  function openItemModal(item, preset){
+    ui.pendingDup = null;
+    el.dupPanel.hidden = true;
+    el.itemForm.hidden = false;
+    el.itemForm.reset();
+    fillPurposeList();
+    fillStoreList();
+    el.purchaseDetails.open = false;
+    if(item){
+      el.itemModalTitle.textContent = "항목 수정";
+      el.submitItemBtn.textContent = "저장";
+      el.deleteItemBtn.hidden = false;
+      el.itemId.value = item.id;
+      fillLocationSelect(item.locationId, item.subLocationId);
+      el.fieldName.value = item.name;
+      el.fieldBrand.value = item.brand;
+      el.fieldPurpose.value = item.purpose;
+      el.fieldQuantity.value = item.quantity;
+      el.fieldMinQty.value = item.minQty === null ? "" : String(item.minQty);
+      el.fieldExpiry.value = item.expiry || "";
+      const p = item.purchase;
+      el.fieldPurchaseDate.value = p ? p.date : "";
+      el.fieldPrice.value = p && p.price !== null ? String(p.price) : "";
+      el.fieldStore.value = p ? p.store : "";
+      el.purchaseDetails.open = !!p;
+      setRating(item.rating);
+    }else{
+      preset = preset || {};
+      el.itemModalTitle.textContent = "새 항목 추가";
+      el.submitItemBtn.textContent = "추가";
+      el.deleteItemBtn.hidden = true;
+      el.itemId.value = "";
+      let locId = "", subId = "";
+      const lf = el.filterLocation.value;
+      if(preset.locationId){ locId = preset.locationId; subId = preset.subLocationId || ""; }
+      else if(findLoc(lf)){ locId = lf; }
+      else { locId = ui.lastLocationId; subId = ui.lastSubId; }
+      fillLocationSelect(locId, subId);
+      el.fieldQuantity.value = 1;
+      setRating(3);
+    }
+    openModal(el.itemModalBackdrop);
+    setTimeout(() => { (el.fieldLocation.value ? el.fieldName : el.fieldLocation).focus(); }, 40);
+  }
+
+  function closeItemModal(){
+    ui.pendingDup = null;
+    closeModal(el.itemModalBackdrop);
+  }
+
+  el.fieldLocation.addEventListener("change", () => {
+    if(el.fieldLocation.value === "__new__"){
+      el.locNewRow.hidden = false;
+      el.fieldLocNew.value = "";
+      el.fieldLocNew.focus();
+      return;
+    }
+    el.locNewRow.hidden = true;
+    ui.prevLocValue = el.fieldLocation.value;
+    fillSubSelect("");
+  });
+  function confirmNewLoc(){
+    const name = el.fieldLocNew.value.trim();
+    if(!name){ el.fieldLocNew.focus(); return; }
+    const loc = addLocation(name);
+    fillLocationSelect(loc.id, "");
+    renderAll();
+    el.fieldSub.focus();
+  }
+  function cancelNewLoc(){
+    el.locNewRow.hidden = true;
+    el.fieldLocation.value = ui.prevLocValue || "";
+  }
+  el.locNewAddBtn.addEventListener("click", confirmNewLoc);
+  el.locNewCancelBtn.addEventListener("click", cancelNewLoc);
+  el.fieldLocNew.addEventListener("keydown", e => {
+    if(e.key === "Enter"){ e.preventDefault(); confirmNewLoc(); }
+    else if(e.key === "Escape"){ e.stopPropagation(); cancelNewLoc(); }
+  });
+
+  el.fieldSub.addEventListener("change", () => {
+    if(el.fieldSub.value === "__new__"){
+      el.subNewRow.hidden = false;
+      el.fieldSubNew.value = "";
+      el.fieldSubNew.focus();
+      return;
+    }
+    el.subNewRow.hidden = true;
+    ui.prevSubValue = el.fieldSub.value;
+  });
+  function confirmNewSub(){
+    const loc = findLoc(el.fieldLocation.value);
+    const name = el.fieldSubNew.value.trim();
+    if(!loc) return;
+    if(!name){ el.fieldSubNew.focus(); return; }
+    const sub = addSubLocation(loc, name);
+    fillSubSelect(sub.id);
+    renderAll();
+    el.fieldName.focus();
+  }
+  function cancelNewSub(){
+    el.subNewRow.hidden = true;
+    el.fieldSub.value = ui.prevSubValue || "";
+  }
+  el.subNewAddBtn.addEventListener("click", confirmNewSub);
+  el.subNewCancelBtn.addEventListener("click", cancelNewSub);
+  el.fieldSubNew.addEventListener("keydown", e => {
+    if(e.key === "Enter"){ e.preventDefault(); confirmNewSub(); }
+    else if(e.key === "Escape"){ e.stopPropagation(); cancelNewSub(); }
+  });
+
+  function readForm(){
+    const loc = findLoc(el.fieldLocation.value);
+    const subVal = el.fieldSub.value;
+    const minRaw = el.fieldMinQty.value.trim();
+    const priceRaw = el.fieldPrice.value.trim();
+    let purchase = normalizePurchase({
+      date: el.fieldPurchaseDate.value,
+      price: priceRaw === "" ? null : priceRaw,
+      store: el.fieldStore.value
+    });
+    if(purchase && !purchase.date) purchase.date = todayStr();
+    return {
+      locationId: loc ? loc.id : null,
+      subLocationId: loc && findSub(loc, subVal) ? subVal : null,
+      name: el.fieldName.value.trim(),
+      brand: el.fieldBrand.value.trim(),
+      purpose: el.fieldPurpose.value.trim(),
+      quantity: toQty(el.fieldQuantity.value),
+      minQty: minRaw === "" ? null : toQty(minRaw),
+      expiry: validDate(el.fieldExpiry.value),
+      purchase: purchase,
+      rating: clampRating(el.fieldRating.value)
+    };
+  }
+
+  function rememberLast(p){
+    ui.lastLocationId = p.locationId || "";
+    ui.lastSubId = p.subLocationId || "";
+  }
+
+  /* 이력 기록에 붙일 구매 정보 (가격·구매처·구매일) */
+  function purchaseExtras(p){
+    if(!p) return {};
+    const out = {};
+    if(p.price !== null && p.price !== undefined) out.price = p.price;
+    if(p.store) out.store = p.store;
+    if(p.date) out.purchaseDate = p.date;
+    return out;
+  }
+
+  /* 중복 감지: 이름 같고, 브랜드가 같거나 한쪽이 비어 있으면 같은 물건 */
+  function sameIdentity(it, nName, nBrand){
+    if(norm(it.name) !== nName) return false;
+    const b = norm(it.brand);
+    return (nBrand && b) ? nBrand === b : true;
+  }
+  function findDuplicate(name, brand){
+    const nName = norm(name), nBrand = norm(brand);
+    const matches = activeItems().filter(it => sameIdentity(it, nName, nBrand));
+    if(matches.length) return { kind: "active", matches: matches };
+    const arch = archivedItems().filter(it => sameIdentity(it, nName, nBrand))
+      .sort((a, b) => new Date(b.archive.date) - new Date(a.archive.date));
+    if(arch.length) return { kind: "archived", item: arch[0] };
+    return null;
+  }
+
+  function commitItem(id, p){
+    if(id){
+      const it = findItem(id);
+      if(!it) return;
+      const prevQty = it.quantity;
+      const prevPath = locPath(it);
+      Object.assign(it, p, { updatedAt: nowISO() });
+      const newPath = locPath(it);
+      if(prevPath !== newPath) logHistory(it, { type: "move", from: prevPath, to: newPath });
+      if(prevQty !== it.quantity){
+        logHistory(it, { type: "adjust", prevQty: prevQty, newQty: it.quantity });
+        it.lastCheckedAt = nowISO();
+      }
+      if(prevPath !== newPath) revealItem(it);
+      toast("수정했어요");
+    }else{
+      const it = Object.assign({
+        id: uid(), createdAt: nowISO(), updatedAt: nowISO(), lastCheckedAt: nowISO(),
+        status: "active", archive: null, originId: null, history: []
+      }, p);
+      logHistory(it, Object.assign({ type: "create", prevQty: 0, newQty: it.quantity, to: locPath(it) }, purchaseExtras(p.purchase)));
+      state.items.unshift(it);
+      rememberLast(p);
+      revealItem(it);
+      toast(`${locPath(it)}에 추가했어요`);
+    }
+    persist();
+    renderAll();
+    closeItemModal();
+  }
+
+  el.itemForm.addEventListener("submit", ev => {
+    ev.preventDefault();
+    const id = el.itemId.value;
+    const p = readForm();
+    if(!p.locationId){ toast("큰 위치를 선택해주세요"); el.fieldLocation.focus(); return; }
+    if(!p.name){ toast("물건 이름을 입력해주세요"); el.fieldName.focus(); return; }
+    if(!id){
+      const dup = findDuplicate(p.name, p.brand);
+      if(dup){ showDupPanel(dup, p); return; }
+    }
+    commitItem(id, p);
+  });
+
+  function showDupPanel(dup, p){
+    ui.pendingDup = { kind: dup.kind, payload: p, targetId: null };
+    el.itemForm.hidden = true;
+    el.dupPanel.hidden = false;
+    if(dup.kind === "active"){
+      const m = dup.matches;
+      const target =
+        m.find(x => x.locationId === p.locationId && (x.subLocationId || null) === (p.subLocationId || null)) ||
+        m.find(x => x.locationId === p.locationId) || m[0];
+      ui.pendingDup.targetId = target.id;
+      el.dupLead.textContent = m.length > 1 ? `이미 ${m.length}곳에 있는 물건이에요` : "이미 있는 물건이에요";
+      el.dupExistingName.textContent = displayName(target);
+      el.dupExistingMeta.innerHTML = m.map(x => `<div>${esc(locPath(x))} · ${num(x.quantity)}개</div>`).join("");
+      el.dupQuestion.textContent = m.length > 1
+        ? `새로 산 거라면 ‘${locPath(target)}’ 항목에 수량을 합칠 수 있어요.`
+        : "새로 산 거라면 기존 항목에 수량을 합칠 수 있어요.";
+      el.dupPrimaryBtn.textContent = `수량 합치기 (${target.quantity} + ${p.quantity})`;
+    }else{
+      const r = dup.item;
+      ui.pendingDup.targetId = r.id;
+      el.dupLead.textContent = "보관함에 있는 물건이에요";
+      el.dupExistingName.textContent = displayName(r);
+      el.dupExistingMeta.textContent = `${REASON_LABELS[r.archive.reason]} · ${formatDate(r.archive.date)} · ${locPath(r)} · ${num(r.archive.quantity)}개`;
+      el.dupQuestion.textContent = "다시 생긴 거라면 복원해서 이력을 이어갈 수 있어요. 지금 입력한 위치와 수량으로 복원돼요.";
+      el.dupPrimaryBtn.textContent = "보관함에서 복원";
+    }
+  }
+
+  el.dupCancelBtn.addEventListener("click", () => {
+    ui.pendingDup = null;
+    el.dupPanel.hidden = true;
+    el.itemForm.hidden = false;
+  });
+  el.dupAddNewBtn.addEventListener("click", () => {
+    const pd = ui.pendingDup;
+    if(!pd) return;
+    commitItem("", pd.payload);
+  });
+  el.dupPrimaryBtn.addEventListener("click", () => {
+    const pd = ui.pendingDup;
+    if(!pd) return;
+    const target = findItem(pd.targetId);
+    if(!target) return;
+    const p = pd.payload;
+    if(pd.kind === "active"){
+      const prev = target.quantity;
+      target.quantity = prev + p.quantity;
+      target.updatedAt = nowISO();
+      target.lastCheckedAt = nowISO();
+      if(!target.brand && p.brand) target.brand = p.brand;
+      if(target.minQty === null && p.minQty !== null) target.minQty = p.minQty;
+      if(p.expiry && (!target.expiry || p.expiry < target.expiry)) target.expiry = p.expiry;
+      if(p.purchase) target.purchase = p.purchase;
+      logHistory(target, Object.assign({ type: "merge", prevQty: prev, newQty: target.quantity }, purchaseExtras(p.purchase)));
+      toast(`수량을 합쳤어요 (총 ${target.quantity}개)`);
+    }else{
+      target.status = "active";
+      target.archive = null;
+      target.originId = null;
+      target.locationId = p.locationId;
+      target.subLocationId = p.subLocationId;
+      if(p.brand) target.brand = p.brand;
+      if(p.purpose) target.purpose = p.purpose;
+      if(p.minQty !== null) target.minQty = p.minQty;
+      target.expiry = p.expiry || "";
+      if(p.purchase) target.purchase = p.purchase;
+      target.rating = p.rating;
+      target.quantity = p.quantity;
+      target.updatedAt = nowISO();
+      target.lastCheckedAt = nowISO();
+      logHistory(target, Object.assign({ type: "restore", prevQty: 0, newQty: target.quantity, to: locPath(target) }, purchaseExtras(p.purchase)));
+      toast("보관함에서 복원했어요");
+    }
+    rememberLast(p);
+    revealItem(target);
+    persist();
+    renderAll();
+    closeItemModal();
+  });
+
+  el.deleteItemBtn.addEventListener("click", () => {
+    const it = findItem(el.itemId.value);
+    if(!it) return;
+    if(!confirm(`‘${it.name}’을(를) 완전히 삭제할까요?\n다 썼거나 버린 거라면 ‘정리’를 쓰면 보관함에 기록이 남아요.`)) return;
+    state.items = state.items.filter(x => x.id !== it.id);
+    state.items.forEach(x => { if(x.originId === it.id) x.originId = null; });
+    persist();
+    renderAll();
+    closeItemModal();
+    toast("삭제했어요");
+  });
+
+  el.addItemBtn.addEventListener("click", () => openItemModal(null));
+  el.cancelItemBtn.addEventListener("click", closeItemModal);
+
+  /* =========================================================
+     정리하기 (다 씀 / 버림) → 보관함
+  ========================================================= */
+  function setArchiveReason(r){
+    ui.archiveReason = r;
+    el.archiveReasonSeg.querySelectorAll(".seg-btn").forEach(b => {
+      const on = b.getAttribute("data-reason") === r;
+      b.classList.toggle("active", on);
+      b.setAttribute("aria-pressed", on ? "true" : "false");
+    });
+  }
+  function archiveCountValue(it){
+    if(it.quantity <= 1) return it.quantity;
+    const c = Math.round(Number(el.archiveCount.value) || 0);
+    return Math.min(it.quantity, Math.max(1, c));
+  }
+  function updateArchiveHint(){
+    const it = findItem(ui.archiveTargetId);
+    if(!it) return;
+    const c = archiveCountValue(it);
+    if(it.quantity > 1 && c < it.quantity){
+      el.archiveCountHint.textContent = `${c}개만 보관함으로 옮기고 ${it.quantity - c}개는 그대로 남겨요`;
+      el.archiveConfirmBtn.textContent = `${c}개 보관함으로 이동`;
+    }else{
+      el.archiveCountHint.textContent = it.quantity > 1 ? `전체 ${it.quantity}개를 옮겨요 · 일부만 정리하려면 수량을 줄이세요` : "";
+      el.archiveConfirmBtn.textContent = "보관함으로 이동";
+    }
+  }
+  function openArchiveModal(id, reason){
+    const it = findItem(id);
+    if(!it || it.status !== "active") return;
+    ui.archiveTargetId = id;
+    setArchiveReason(REASONS.indexOf(reason) !== -1 ? reason : "usedup");
+    el.archiveItemName.textContent = displayName(it);
+    el.archiveItemMeta.textContent = `${locPath(it)} · 현재 ${num(it.quantity)}개`;
+    el.archiveNote.value = "";
+    el.archiveCountField.hidden = it.quantity <= 1;
+    el.archiveCount.max = String(Math.max(1, it.quantity));
+    el.archiveCount.value = String(Math.max(1, it.quantity));
+    updateArchiveHint();
+    openModal(el.archiveModalBackdrop);
+  }
+  function closeArchiveModal(){
+    ui.archiveTargetId = null;
+    closeModal(el.archiveModalBackdrop);
+  }
+
+  function archiveItem(id, reason, count, note){
+    const it = findItem(id);
+    if(!it || it.status !== "active") return;
+    const qty = it.quantity;
+    const now = nowISO();
+    const partial = qty > 1 && count >= 1 && count < qty;
+    if(partial){
+      it.quantity = qty - count;
+      it.updatedAt = now;
+      logHistory(it, { type: reason, prevQty: qty, newQty: it.quantity, note: note });
+      const copyHistory = [{ date: now, type: reason, prevQty: count, newQty: 0, note: note, partialOf: qty }]
+        .concat(it.history.slice(1).map(h => Object.assign({}, h)));
+      state.items.push({
+        id: uid(),
+        locationId: it.locationId, subLocationId: it.subLocationId,
+        name: it.name, brand: it.brand, purpose: it.purpose,
+        quantity: count, rating: it.rating,
+        minQty: null, expiry: it.expiry, purchase: it.purchase ? Object.assign({}, it.purchase) : null,
+        lastCheckedAt: it.lastCheckedAt,
+        createdAt: it.createdAt, updatedAt: now,
+        status: "archived",
+        archive: { reason: reason, date: now, note: note, quantity: count },
+        originId: it.id,
+        history: copyHistory
+      });
+      toast(`${count}개를 보관함으로 옮겼어요 (남은 수량 ${it.quantity}개)`);
+    }else{
+      logHistory(it, { type: reason, prevQty: qty, newQty: 0, note: note });
+      it.status = "archived";
+      it.archive = { reason: reason, date: now, note: note, quantity: qty };
+      it.updatedAt = now;
+      toast(`‘${it.name}’을(를) 보관함으로 옮겼어요`);
+    }
+    persist();
+    renderAll();
+  }
+
+  el.archiveReasonSeg.addEventListener("click", ev => {
+    const b = ev.target.closest(".seg-btn");
+    if(b) setArchiveReason(b.getAttribute("data-reason"));
+  });
+  el.archiveCount.addEventListener("input", updateArchiveHint);
+  el.archiveCancelBtn.addEventListener("click", closeArchiveModal);
+  el.archiveConfirmBtn.addEventListener("click", () => {
+    const it = findItem(ui.archiveTargetId);
+    if(!it) return;
+    archiveItem(it.id, ui.archiveReason, archiveCountValue(it), el.archiveNote.value.trim());
+    closeArchiveModal();
+  });
+  el.archiveNote.addEventListener("keydown", e => {
+    if(e.key === "Enter"){ e.preventDefault(); el.archiveConfirmBtn.click(); }
+  });
+
+  function restoreItem(id){
+    const r = findItem(id);
+    if(!r || r.status !== "archived") return;
+    const qty = r.archive ? r.archive.quantity : r.quantity;
+    const origin = r.originId ? findItem(r.originId) : null;
+    if(origin && origin.status === "active"){
+      const prev = origin.quantity;
+      origin.quantity = prev + qty;
+      origin.updatedAt = nowISO();
+      origin.lastCheckedAt = nowISO();
+      logHistory(origin, { type: "restore", prevQty: prev, newQty: origin.quantity });
+      state.items = state.items.filter(x => x.id !== r.id);
+      toast(`원래 항목(${locPath(origin)})에 ${qty}개를 되돌렸어요`);
+    }else{
+      r.status = "active";
+      r.archive = null;
+      r.originId = null;
+      r.quantity = qty;
+      r.updatedAt = nowISO();
+      r.lastCheckedAt = nowISO();
+      logHistory(r, { type: "restore", prevQty: 0, newQty: qty, to: locPath(r) });
+      revealItem(r);
+      toast(`‘${r.name}’을(를) 복원했어요`);
+    }
+    persist();
+    renderAll();
+  }
+
+  function purgeItem(id){
+    const r = findItem(id);
+    if(!r) return;
+    if(!confirm(`‘${r.name}’ 기록을 보관함에서 완전히 삭제할까요?\n이력도 함께 사라져요.`)) return;
+    state.items = state.items.filter(x => x.id !== id);
+    persist();
+    renderAll();
+    toast("삭제했어요");
+  }
+
+  /* =========================================================
+     구매 기록 (장보기 → 구매함)
+  ========================================================= */
+  function suggestRestockQty(it){
+    const h = (it.history || []).find(e => (e.type === "restock" || e.type === "create") && e.newQty > e.prevQty);
+    if(h) return h.newQty - h.prevQty;
+    return Math.max(1, (it.minQty === null ? 0 : it.minQty) + 1 - it.quantity);
+  }
+
+  function openRestockModal(id){
+    const it = findItem(id);
+    if(!it || it.status !== "active") return;
+    ui.restockTargetId = id;
+    fillStoreList();
+    el.restockItemName.textContent = displayName(it);
+    el.restockItemMeta.textContent = `${locPath(it)} · 현재 ${num(it.quantity)}개` + (it.minQty !== null ? ` · 최소 ${num(it.minQty)}개` : "");
+    el.restockQty.value = String(suggestRestockQty(it));
+    el.restockDate.value = todayStr();
+    el.restockPrice.value = it.purchase && it.purchase.price !== null ? String(it.purchase.price) : "";
+    el.restockStore.value = it.purchase ? it.purchase.store : "";
+    el.restockExpiry.value = "";
+    const lp = lastPurchaseText(it);
+    el.restockLastInfo.textContent = lp ? `${lp} — 가격·구매처를 미리 채워뒀어요` : "";
+    el.restockLastInfo.hidden = !lp;
+    openModal(el.restockModalBackdrop);
+  }
+  function closeRestockModal(){
+    ui.restockTargetId = null;
+    closeModal(el.restockModalBackdrop);
+  }
+
+  function restockItem(id, qty, purchase, expiry){
+    const it = findItem(id);
+    if(!it || it.status !== "active") return;
+    const prev = it.quantity;
+    const now = nowISO();
+    it.quantity = prev + qty;
+    it.updatedAt = now;
+    it.lastCheckedAt = now;
+    it.purchase = purchase;
+    if(expiry) it.expiry = expiry;
+    logHistory(it, Object.assign({ type: "restock", prevQty: prev, newQty: it.quantity }, purchaseExtras(purchase)));
+    persist();
+    renderAll();
+    toast(`${it.name} ${qty}개 구매를 기록했어요 (총 ${it.quantity}개)`);
+  }
+
+  el.restockCancelBtn.addEventListener("click", closeRestockModal);
+  el.restockConfirmBtn.addEventListener("click", () => {
+    const id = ui.restockTargetId;
+    if(!findItem(id)) return;
+    const qty = Math.max(1, toQty(el.restockQty.value));
+    const priceRaw = el.restockPrice.value.trim();
+    const purchase = normalizePurchase({
+      date: validDate(el.restockDate.value) || todayStr(),
+      price: priceRaw === "" ? null : priceRaw,
+      store: el.restockStore.value
+    });
+    restockItem(id, qty, purchase, validDate(el.restockExpiry.value));
+    closeRestockModal();
+  });
+
+  /* =========================================================
+     재고 실사
+  ========================================================= */
+  function startAudit(){
+    const hasProgress = state.meta.auditStartedAt && activeItems().some(isAudited);
+    if(hasProgress && !confirm("새 실사를 시작할까요?\n지금까지의 ‘확인됨’ 표시가 초기화돼요. (마지막 확인 날짜는 그대로 남아요)")) return;
+    state.meta.auditStartedAt = nowISO();
+    ui.auditUncheckedOnly = false;
+    persist();
+    renderAll();
+    toast("실사를 시작했어요. 물건을 보면서 ‘있어요’를 눌러 주세요");
+  }
+
+  function markChecked(id){
+    const it = findItem(id);
+    if(!it || it.status !== "active") return;
+    if(!auditStartTime()) state.meta.auditStartedAt = new Date(Date.now() - 1000).toISOString();
+    const now = nowISO();
+    it.lastCheckedAt = now;
+    const last = it.history[0];
+    if(last && last.type === "check" && formatDate(last.date) === formatDate(now)){
+      last.date = now;
+      last.newQty = it.quantity;
+      last.prevQty = it.quantity;
+    }else{
+      logHistory(it, { type: "check", prevQty: it.quantity, newQty: it.quantity });
+    }
+    persist();
+    renderAll();
+  }
+
+  /* =========================================================
+     중복 점검: 한 곳으로 합치기 / 따로 두기
+  ========================================================= */
+  function mergeDupGroup(key){
+    const g = duplicateGroups().find(x => x.key === key);
+    if(!g) return;
+    const target = g.items.find(i => i.id === ui.dupTargets[key]) || defaultDupTarget(g);
+    const others = g.items.filter(i => i !== target);
+    const total = sumQty(g.items);
+    if(!confirm(`‘${target.name}’ ${g.items.length}곳을 ‘${locPath(target)}’ 한 곳으로 합칠까요?\n수량은 모두 더해지고(총 ${total}개), 다른 위치의 항목은 없어져요.`)) return;
+    const now = nowISO();
+    others.forEach(o => {
+      const prev = target.quantity;
+      target.quantity = prev + o.quantity;
+      logHistory(target, { type: "merge", prevQty: prev, newQty: target.quantity, from: locPath(o) });
+      if(!target.brand && o.brand) target.brand = o.brand;
+      if(!target.purpose && o.purpose) target.purpose = o.purpose;
+      if(target.minQty === null && o.minQty !== null) target.minQty = o.minQty;
+      if(o.expiry && (!target.expiry || o.expiry < target.expiry)) target.expiry = o.expiry;
+      if(!target.purchase && o.purchase) target.purchase = o.purchase;
+      state.items.forEach(x => { if(x.originId === o.id) x.originId = target.id; });
+    });
+    const removeIds = new Set(others.map(o => o.id));
+    state.items = state.items.filter(x => !removeIds.has(x.id));
+    target.updatedAt = now;
+    target.lastCheckedAt = now;
+    delete ui.dupTargets[key];
+    persist();
+    renderAll();
+    toast(`${locPath(target)}로 합쳤어요 (총 ${target.quantity}개)`);
+  }
+
+  function ignoreDupGroup(key){
+    const current = new Set(duplicateGroups().map(g => g.key));
+    state.meta.dupIgnored = state.meta.dupIgnored.filter(k => current.has(k)).concat([key]);
+    persist();
+    renderAll();
+    toast("이 중복은 숨겼어요. 같은 물건이 또 추가되면 다시 알려드려요");
+  }
+
+  /* =========================================================
+     이력
+  ========================================================= */
+  function historyEntryHTML(h){
+    const prev = Number(h.prevQty) || 0;
+    const next = Number(h.newQty) || 0;
+    const d = next - prev;
+    const sign = d > 0 ? "+" + d : String(d);
+    const extras = [h.store, h.price !== null && h.price !== undefined ? won(h.price) : ""].filter(Boolean).map(esc).join(" · ");
+    const withExtras = t => extras ? `${t} · ${extras}` : t;
+    let text;
+    switch(h.type){
+      case "create":
+        text = withExtras(`등록 · ${num(next)}개` + (h.to ? ` · ${esc(h.to)}` : ""));
+        break;
+      case "merge":
+        text = withExtras(`중복 병합 · ${prev} → ${next}개 (${sign})` + (h.from ? ` · ${esc(h.from)}에서 합침` : ""));
+        break;
+      case "restock":
+        text = withExtras(`구매 · ${prev} → ${next}개 (${sign})`);
+        break;
+      case "check":
+        text = `실사 확인 · ${num(next)}개 있음`;
+        break;
+      case "usedup":
+      case "discarded":
+      case "lost": {
+        const label = REASON_LABELS[h.type];
+        if(h.partialOf) text = `${label} · 전체 ${num(h.partialOf)}개 중 ${num(prev)}개`;
+        else if(prev === 0) text = label;
+        else text = `${label} · ${num(prev - next)}개 (${prev} → ${next}개)`;
+        break;
+      }
+      case "restore":
+        text = withExtras(`복원 · ${prev} → ${next}개 (${sign})` + (h.to ? ` · ${esc(h.to)}` : ""));
+        break;
+      case "move":
+        text = `위치 이동 · ${esc(h.from || "-")} → ${esc(h.to || "-")}`;
+        break;
+      default:
+        text = `${d >= 0 ? "입고" : "출고"} · ${prev} → ${next}개 (${sign})`;
+    }
+    return `<div class="history-entry history-${esc(h.type)}">
+      <div class="history-date">${formatDateTime(h.date)}</div>
+      <div class="history-change">${text}</div>
+      ${h.note ? `<div class="history-note">${esc(h.note)}</div>` : ""}
+    </div>`;
+  }
+
+  function historySummary(it){
+    const h = it.history || [];
+    const lines = [];
+    if(h.length){
+      const first = h[h.length - 1];
+      let peak = 0;
+      h.forEach(e => { peak = Math.max(peak, Number(e.prevQty) || 0, Number(e.newQty) || 0, Number(e.partialOf) || 0); });
+      const parts = [];
+      if(first.type === "create") parts.push(`처음 ${formatDate(first.date)}에 ${num(first.newQty)}개 등록`);
+      if(peak > 0) parts.push(`가장 많을 때 ${num(peak)}개`);
+      if(parts.length) lines.push(parts.join(" · "));
+    }
+    const lp = lastPurchaseText(it);
+    if(lp){
+      const priced = h.filter(e => e.price !== null && e.price !== undefined);
+      const total = priced.reduce((s, e) => s + (Number(e.price) || 0), 0);
+      lines.push(priced.length >= 2 ? `${lp} · 구매 기록 ${priced.length}회, 합계 ${won(total)}` : lp);
+    }
+    const s = statsForItem(it);
+    if(s){
+      lines.push(`평균 ${fmtRate(s.daysPerUnit)} 사용` + (s.daysLeft !== null && s.qty > 0 ? ` · 약 ${s.daysLeft}일 후(${predictedDate(s.daysLeft)}) 소진 예상` : ""));
+    }
+    if(it.expiry) lines.push(`유통·사용기한 ${formatYMD(it.expiry)}`);
+    if(it.status === "active" && it.lastCheckedAt) lines.push(lastCheckLabel(it));
+    return lines;
+  }
+
+  function openHistory(id){
+    const it = findItem(id);
+    if(!it) return;
+    el.historyModalTitle.textContent = `${it.name} 이력`;
+    const status = it.status === "archived"
+      ? `보관함 · ${REASON_LABELS[it.archive.reason]} (${formatDate(it.archive.date)})`
+      : `현재 ${num(it.quantity)}개` + (it.minQty !== null ? ` · 최소 ${num(it.minQty)}개` : "");
+    el.historyModalMeta.textContent = [it.brand, locPath(it), status].filter(Boolean).join(" · ");
+    const summary = historySummary(it);
+    el.historySummary.innerHTML = summary.map(line => `<div>${esc(line)}</div>`).join("");
+    el.historySummary.hidden = !summary.length;
+    el.historyList.innerHTML = it.history.length
+      ? it.history.map(historyEntryHTML).join("")
+      : '<p class="muted">기록이 없어요</p>';
+    openModal(el.historyModalBackdrop);
+  }
+  function closeHistory(){ closeModal(el.historyModalBackdrop); }
+  el.closeHistoryBtn.addEventListener("click", closeHistory);
+
+  /* =========================================================
+     위치 관리
+  ========================================================= */
+  function countActive(locId, subId){
+    return state.items.filter(it =>
+      it.status === "active" && it.locationId === locId && (subId === undefined || it.subLocationId === subId)
+    ).length;
+  }
+
+  function orderBtns(kind, locId, subId, idx, len){
+    const data = `data-loc="${esc(locId)}"` + (subId ? ` data-sub="${esc(subId)}"` : "");
+    return `<span class="order-btns">
+      <button type="button" data-lact="${kind}-up" ${data} aria-label="위로" ${idx === 0 ? "disabled" : ""}>▲</button>
+      <button type="button" data-lact="${kind}-down" ${data} aria-label="아래로" ${idx === len - 1 ? "disabled" : ""}>▼</button>
+    </span>`;
+  }
+
+  function renameControls(key, value){
+    return `<input type="text" class="rename-input" value="${esc(value)}" aria-label="새 이름">
+      <button type="button" class="mini-btn primary" data-lact="save-rename" data-key="${esc(key)}">저장</button>
+      <button type="button" class="mini-btn" data-lact="cancel-rename">취소</button>`;
+  }
+
+  function renderLocManager(){
+    const locs = state.locations;
+    el.locSummary.textContent = locs.length
+      ? `큰 위치 ${locs.length}개 · 세부 위치 ${locs.reduce((s, l) => s + l.subs.length, 0)}개`
+      : "";
+    if(!locs.length){
+      el.locList.innerHTML = '<p class="muted" style="font-size:13px;margin:4px 0">아직 위치가 없어요. 위에서 추가해 보세요.</p>';
+      return;
+    }
+    el.locList.innerHTML = locs.map((loc, i) => {
+      const expanded = ui.locExpanded.has(loc.id);
+      const editing = ui.locEditing === "loc:" + loc.id;
+      const head = editing ? renameControls("loc:" + loc.id, loc.name) : `
+        <button type="button" class="loc-name" data-lact="toggle-loc" data-loc="${esc(loc.id)}" aria-expanded="${expanded}">
+          <span class="caret">${expanded ? "▼" : "▶"}</span>${esc(loc.name)}
+          <span class="loc-count">물건 ${countActive(loc.id)} · 세부 ${loc.subs.length}</span>
+        </button>
+        <button type="button" class="mini-btn" data-lact="rename-loc" data-loc="${esc(loc.id)}">수정</button>
+        <button type="button" class="mini-btn danger" data-lact="delete-loc" data-loc="${esc(loc.id)}">삭제</button>`;
+      let subs = "";
+      if(expanded){
+        subs = loc.subs.map((s, j) => {
+          const key = `sub:${loc.id}:${s.id}`;
+          const body = ui.locEditing === key ? renameControls(key, s.name) : `
+            <span class="loc-name">${esc(s.name)} <span class="loc-count">물건 ${countActive(loc.id, s.id)}</span></span>
+            <button type="button" class="mini-btn" data-lact="rename-sub" data-loc="${esc(loc.id)}" data-sub="${esc(s.id)}">수정</button>
+            <button type="button" class="mini-btn danger" data-lact="delete-sub" data-loc="${esc(loc.id)}" data-sub="${esc(s.id)}">삭제</button>`;
+          return `<div class="loc-row sub">${orderBtns("sub", loc.id, s.id, j, loc.subs.length)}${body}</div>`;
+        }).join("");
+        subs += `<div class="sub-add-row">
+          <input type="text" data-newsub="${esc(loc.id)}" placeholder="${esc(loc.name)}의 세부 위치 추가 (예: 옷장)" autocomplete="off">
+          <button type="button" class="mini-btn primary" data-lact="add-sub" data-loc="${esc(loc.id)}">추가</button>
+        </div>`;
+        if(loc.subs.length > 1){
+          subs += `<div class="sub-tools"><button type="button" class="text-btn" data-lact="sort-subs" data-loc="${esc(loc.id)}">세부 위치 가나다순 정렬</button></div>`;
+        }
+      }
+      return `<div class="loc-card"><div class="loc-row">${orderBtns("loc", loc.id, null, i, locs.length)}${head}</div>${subs}</div>`;
+    }).join("");
+    const ri = el.locList.querySelector(".rename-input");
+    if(ri){ ri.focus(); ri.select(); }
+  }
+
+  function commitLoc(){
+    persist();
+    renderAll();
+    renderLocManager();
+  }
+
+  function moveItem(arr, idx, dir){
+    const j = idx + dir;
+    if(idx < 0 || j < 0 || j >= arr.length) return false;
+    const tmp = arr[idx]; arr[idx] = arr[j]; arr[j] = tmp;
+    return true;
+  }
+
+  function saveRename(){
+    const input = el.locList.querySelector(".rename-input");
+    if(!input || !ui.locEditing) return;
+    const name = input.value.trim();
+    if(!name){ toast("이름을 입력해주세요"); input.focus(); return; }
+    const parts = ui.locEditing.split(":");
+    const loc = findLoc(parts[1]);
+    if(!loc) return;
+    if(parts[0] === "loc"){
+      if(state.locations.some(l => l !== loc && norm(l.name) === norm(name))){ toast("같은 이름의 위치가 이미 있어요"); return; }
+      loc.name = name;
+    }else{
+      const sub = findSub(loc, parts[2]);
+      if(!sub) return;
+      if(loc.subs.some(s => s !== sub && norm(s.name) === norm(name))){ toast("같은 이름의 세부 위치가 이미 있어요"); return; }
+      sub.name = name;
+    }
+    ui.locEditing = null;
+    commitLoc();
+    toast("이름을 바꿨어요");
+  }
+
+  function deleteLocation(loc){
+    const affected = state.items.filter(it => it.locationId === loc.id);
+    let msg = `‘${loc.name}’ 위치를 삭제할까요?`;
+    if(loc.subs.length) msg += `\n세부 위치 ${loc.subs.length}개도 함께 삭제돼요.`;
+    if(affected.length) msg += `\n여기 있던 물건 ${affected.length}개(보관함 포함)는 ‘위치 미지정’으로 옮겨져요.`;
+    if(!confirm(msg)) return;
+    affected.forEach(it => { it.locationId = null; it.subLocationId = null; });
+    state.locations = state.locations.filter(l => l !== loc);
+    ui.locExpanded.delete(loc.id);
+    if(ui.lastLocationId === loc.id){ ui.lastLocationId = ""; ui.lastSubId = ""; }
+    commitLoc();
+    toast("위치를 삭제했어요");
+  }
+
+  function deleteSub(loc, sub){
+    const affected = state.items.filter(it => it.locationId === loc.id && it.subLocationId === sub.id);
+    let msg = `‘${loc.name} › ${sub.name}’을(를) 삭제할까요?`;
+    if(affected.length) msg += `\n여기 있던 물건 ${affected.length}개는 ‘${loc.name}’(세부 위치 없음)으로 옮겨져요.`;
+    if(!confirm(msg)) return;
+    affected.forEach(it => { it.subLocationId = null; });
+    loc.subs = loc.subs.filter(s => s !== sub);
+    if(ui.lastSubId === sub.id) ui.lastSubId = "";
+    commitLoc();
+    toast("세부 위치를 삭제했어요");
+  }
+
+  function addSubFromManager(loc){
+    const input = el.locList.querySelector(`[data-newsub="${loc.id}"]`);
+    if(!input) return;
+    const name = input.value.trim();
+    if(!name){ input.focus(); return; }
+    addSubLocation(loc, name);
+    commitLoc();
+    const again = el.locList.querySelector(`[data-newsub="${loc.id}"]`);
+    if(again) again.focus();
+  }
+
+  el.locList.addEventListener("click", ev => {
+    const t = ev.target.closest("[data-lact]");
+    if(!t || t.disabled) return;
+    const act = t.getAttribute("data-lact");
+    const loc = findLoc(t.getAttribute("data-loc"));
+    const sub = findSub(loc, t.getAttribute("data-sub"));
+    switch(act){
+      case "toggle-loc":
+        if(!loc) return;
+        if(ui.locExpanded.has(loc.id)) ui.locExpanded.delete(loc.id); else ui.locExpanded.add(loc.id);
+        renderLocManager();
+        break;
+      case "loc-up":
+      case "loc-down":
+        if(loc && moveItem(state.locations, state.locations.indexOf(loc), act === "loc-up" ? -1 : 1)) commitLoc();
+        break;
+      case "sub-up":
+      case "sub-down":
+        if(loc && sub && moveItem(loc.subs, loc.subs.indexOf(sub), act === "sub-up" ? -1 : 1)) commitLoc();
+        break;
+      case "rename-loc":
+        if(loc){ ui.locEditing = "loc:" + loc.id; renderLocManager(); }
+        break;
+      case "rename-sub":
+        if(loc && sub){ ui.locEditing = `sub:${loc.id}:${sub.id}`; renderLocManager(); }
+        break;
+      case "save-rename":
+        saveRename();
+        break;
+      case "cancel-rename":
+        ui.locEditing = null;
+        renderLocManager();
+        break;
+      case "delete-loc":
+        if(loc) deleteLocation(loc);
+        break;
+      case "delete-sub":
+        if(loc && sub) deleteSub(loc, sub);
+        break;
+      case "add-sub":
+        if(loc) addSubFromManager(loc);
+        break;
+      case "sort-subs":
+        if(loc){ loc.subs.sort((a, b) => byName(a.name, b.name)); commitLoc(); }
+        break;
+    }
+  });
+
+  el.locList.addEventListener("keydown", ev => {
+    if(ev.target.classList.contains("rename-input")){
+      if(ev.key === "Enter"){ ev.preventDefault(); saveRename(); }
+      else if(ev.key === "Escape"){ ev.stopPropagation(); ui.locEditing = null; renderLocManager(); }
+      return;
+    }
+    const locId = ev.target.getAttribute && ev.target.getAttribute("data-newsub");
+    if(locId && ev.key === "Enter"){
+      ev.preventDefault();
+      const loc = findLoc(locId);
+      if(loc) addSubFromManager(loc);
+    }
+  });
+
+  function addLocFromManager(){
+    const name = el.newLocInput.value.trim();
+    if(!name){ el.newLocInput.focus(); return; }
+    const loc = addLocation(name);
+    el.newLocInput.value = "";
+    ui.locExpanded.add(loc.id);
+    commitLoc();
+  }
+  el.newLocBtn.addEventListener("click", addLocFromManager);
+  el.newLocInput.addEventListener("keydown", e => {
+    if(e.key === "Enter"){ e.preventDefault(); addLocFromManager(); }
+  });
+  el.sortLocsBtn.addEventListener("click", () => {
+    if(state.locations.length < 2) return;
+    state.locations.sort((a, b) => byName(a.name, b.name));
+    commitLoc();
+    toast("가나다순으로 정렬했어요");
+  });
+
+  function openLocModal(){
+    ui.locEditing = null;
+    renderLocManager();
+    openModal(el.locModalBackdrop);
+  }
+  function closeLocModal(){
+    ui.locEditing = null;
+    closeModal(el.locModalBackdrop);
+  }
+  el.manageLocBtn.addEventListener("click", openLocModal);
+  el.closeLocBtn.addEventListener("click", closeLocModal);
+
+  /* =========================================================
+     메인 영역 클릭 처리
+  ========================================================= */
+  el.mainContent.addEventListener("click", ev => {
+    const t = ev.target.closest("[data-act]");
+    if(!t) return;
+    const act = t.getAttribute("data-act");
+    const id = t.getAttribute("data-id");
+    switch(act){
+      case "view":
+        ui.view = t.getAttribute("data-view");
+        renderMain();
+        break;
+      case "toggle": {
+        const key = t.getAttribute("data-key");
+        if(searchQuery()) break; // 검색 중에는 모두 펼쳐 보여줌
+        if(ui.collapsed.has(key)) ui.collapsed.delete(key); else ui.collapsed.add(key);
+        saveUiPrefs();
+        renderMain();
+        break;
+      }
+      case "fold": foldAll(t.getAttribute("data-mode")); break;
+      case "inc": adjustQuantity(id, 1); break;
+      case "dec": adjustQuantity(id, -1); break;
+      case "history": openHistory(id); break;
+      case "edit": { const it = findItem(id); if(it) openItemModal(it); break; }
+      case "archive": openArchiveModal(id); break;
+      case "restore": restoreItem(id); break;
+      case "purge": purgeItem(id); break;
+      case "add-here":
+        openItemModal(null, { locationId: t.getAttribute("data-loc"), subLocationId: t.getAttribute("data-sub") || "" });
+        break;
+      case "add": openItemModal(null); break;
+      case "manage-loc": openLocModal(); break;
+      case "archive-filter":
+        ui.archiveFilter = t.getAttribute("data-value");
+        renderMain();
+        break;
+      case "goto":
+        ui.view = t.getAttribute("data-view");
+        if(t.getAttribute("data-check")) ui.checkTab = t.getAttribute("data-check");
+        renderMain();
+        break;
+      case "check-tab":
+        ui.checkTab = t.getAttribute("data-value");
+        renderMain();
+        break;
+      case "restock": openRestockModal(id); break;
+      case "copy-shop": copyText(shopListText(), "장보기 목록을 복사했어요. 메모나 메신저에 붙여넣으세요"); break;
+      case "audit-start": startAudit(); break;
+      case "audit-check": markChecked(id); break;
+      case "audit-missing": openArchiveModal(id, "lost"); break;
+      case "audit-toggle":
+        ui.auditUncheckedOnly = !!t.checked;
+        renderMain();
+        break;
+      case "dup-target":
+        ui.dupTargets[t.getAttribute("data-key")] = id;
+        break;
+      case "dup-merge": mergeDupGroup(t.getAttribute("data-key")); break;
+      case "dup-ignore": ignoreDupGroup(t.getAttribute("data-key")); break;
+      case "dup-unignore":
+        state.meta.dupIgnored = [];
+        persist();
+        renderAll();
+        break;
+    }
+  });
+
+  document.addEventListener("click", ev => {
+    const b = ev.target.closest("[data-clear]");
+    if(!b) return;
+    const input = document.getElementById(b.getAttribute("data-clear"));
+    if(input) input.value = "";
+  });
+
+  el.searchInput.addEventListener("input", debounce(renderMain, 150));
+  el.filterLocation.addEventListener("change", renderMain);
+  el.sortSelect.addEventListener("change", renderMain);
+
+  /* 배경 클릭 / ESC로 모달 닫기 */
+  [
+    [el.itemModalBackdrop, closeItemModal],
+    [el.archiveModalBackdrop, closeArchiveModal],
+    [el.restockModalBackdrop, closeRestockModal],
+    [el.locModalBackdrop, closeLocModal],
+    [el.historyModalBackdrop, closeHistory],
+    [el.updateModalBackdrop, () => closeModal(el.updateModalBackdrop)]
+  ].forEach(pair => {
+    pair[0].addEventListener("click", ev => { if(ev.target === pair[0]) pair[1](); });
+  });
+  document.addEventListener("keydown", ev => {
+    if(ev.key !== "Escape") return;
+    closeItemModal();
+    closeArchiveModal();
+    closeRestockModal();
+    closeLocModal();
+    closeHistory();
+    closeModal(el.updateModalBackdrop);
+  });
+
+  /* =========================================================
+     데이터 내보내기 / 가져오기 (JSON)
+  ========================================================= */
+  function downloadFile(filename, content, mime){
+    const blob = new Blob([content], { type: mime });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  el.exportBtn.addEventListener("click", () => {
+    const payload = {
+      app: "inventory",
+      schema: 2,
+      appVersion: APP_VERSION,
+      exportedAt: nowISO(),
+      locations: state.locations,
+      items: state.items,
+      meta: state.meta
+    };
+    downloadFile(`재고데이터_${formatDate(nowISO()).replace(/\./g, "-")}.json`, JSON.stringify(payload, null, 2), "application/json");
+    toast("데이터를 내보냈어요");
+  });
+
+  const recordSignature = it => [norm(it.name), norm(it.brand), it.locationId || "", it.subLocationId || "", it.status, it.createdAt].join("|");
+
+  function mergeImported(parsed, replace){
+    const impLocs = (!Array.isArray(parsed) && Array.isArray(parsed.locations)) ? parsed.locations : [];
+    const impItems = Array.isArray(parsed) ? parsed : parsed.items;
+    if(replace){
+      state.items = [];
+      if(impLocs.length) state.locations = [];
+    }
+    const locMap = {}, subMap = {};
+    impLocs.forEach(raw => {
+      if(!raw || !String(raw.name || "").trim()) return;
+      const name = String(raw.name).trim();
+      let loc = state.locations.find(x => norm(x.name) === norm(name));
+      if(!loc){ loc = { id: uid(), name: name, subs: [] }; state.locations.push(loc); }
+      if(raw.id) locMap[raw.id] = loc.id;
+      (Array.isArray(raw.subs) ? raw.subs : []).forEach(rs => {
+        if(!rs || !String(rs.name || "").trim()) return;
+        const sn = String(rs.name).trim();
+        let sub = loc.subs.find(x => norm(x.name) === norm(sn));
+        if(!sub){ sub = { id: uid(), name: sn }; loc.subs.push(sub); }
+        if(rs.id) subMap[rs.id] = sub.id;
+      });
+    });
+
+    const existingSigs = new Set(state.items.map(recordSignature));
+    const idMap = {};
+    const added = [];
+    let skipped = 0;
+    impItems.forEach(raw => {
+      const it = normalizeItem(raw);
+      if(!it) return;
+      it.id = uid();
+      it.locationId = raw.locationId ? (locMap[raw.locationId] || null) : null;
+      it.subLocationId = raw.subLocationId ? (subMap[raw.subLocationId] || null) : null;
+      fixLocationRefs(it);
+      const sig = recordSignature(it);
+      if(existingSigs.has(sig)){ skipped++; return; }
+      existingSigs.add(sig);
+      if(raw.id) idMap[raw.id] = it.id;
+      added.push(it);
+    });
+    added.forEach(it => { if(it.originId) it.originId = idMap[it.originId] || null; });
+    state.items = state.items.concat(added);
+    return { added: added.length, skipped: skipped };
+  }
+
+  el.importBtn.addEventListener("click", () => el.importFileInput.click());
+  el.importFileInput.addEventListener("change", () => {
+    const file = el.importFileInput.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try{
+        const parsed = JSON.parse(reader.result);
+        const impItems = Array.isArray(parsed) ? parsed : (parsed && parsed.items);
+        if(!Array.isArray(impItems)) throw new Error("invalid");
+        let replace = false;
+        if(state.items.length){
+          if(!confirm("가져온 데이터를 기존 데이터에 추가할까요?\n(취소를 누르면 덮어쓰기 여부를 다시 물어봐요)")){
+            if(!confirm("기존 데이터를 모두 지우고 가져온 데이터로 덮어쓸까요?")) return;
+            replace = true;
+          }
+        }
+        const res = mergeImported(parsed, replace);
+        persist();
+        renderAll();
+        toast(`${res.added}개 항목을 가져왔어요` + (res.skipped ? ` (이미 있는 ${res.skipped}개는 건너뜀)` : ""));
+      }catch(e){
+        toast("가져오기에 실패했어요 (JSON 형식을 확인해주세요)");
+      }finally{
+        el.importFileInput.value = "";
+      }
+    };
+    reader.readAsText(file, "utf-8");
+  });
+
+  /* =========================================================
+     PDF 내보내기 (인쇄 → PDF로 저장)
+  ========================================================= */
+  function printLocSection(title, loc, items){
+    const html = `<h2>${esc(title)} <span class="print-group-meta">${items.length ? `${items.length}개 품목 · 총 ${num(sumQty(items))}개` : "비어 있음"}</span></h2>`;
+    if(!items.length) return html;
+    const subIdx = it => {
+      if(!loc) return 9999;
+      const i = loc.subs.findIndex(s => s.id === it.subLocationId);
+      return i === -1 ? 9999 : i;
+    };
+    const sorted = items.slice().sort((a, b) => (subIdx(a) - subIdx(b)) || byName(a.name, b.name));
+    const rows = sorted.map(it => {
+      const sub = findSub(loc, it.subLocationId);
+      const dep = isDepleted(it);
+      return `<tr${dep ? ' class="depleted-row"' : ""}>
+        <td>${sub ? esc(sub.name) : "-"}</td>
+        <td>${esc(it.name)}</td>
+        <td>${esc(it.brand || "-")}</td>
+        <td>${esc(it.purpose || "-")}</td>
+        <td class="num">${num(it.quantity)}${dep ? " (소진)" : ""}</td>
+        <td>${it.expiry ? formatYMD(it.expiry) : "-"}</td>
+        <td>${starsPlain(it.rating)}</td>
+      </tr>`;
+    }).join("");
+    return html + `<table><thead><tr><th>세부 위치</th><th>물건</th><th>브랜드</th><th>용도</th><th class="num">수량</th><th>기한</th><th>평가</th></tr></thead><tbody>${rows}</tbody></table>`;
+  }
+
+  function buildPrintReport(){
+    const act = activeItems();
+    const arch = archivedItems().slice().sort((a, b) => new Date(b.archive.date) - new Date(a.archive.date));
+    const shop = shopLists(false);
+    let html = `<h1>재고 목록</h1>
+      <div class="print-meta">출력일시 ${formatDateTime(nowISO())} · 보유 품목 ${act.length}개 · 총 수량 ${num(sumQty(act))}개 · 소진 ${act.filter(isDepleted).length}개 · 구매 필요 ${shop.need.length}개 · 보관함 ${arch.length}개</div>`;
+    const shopRows = shop.need.map(it => [it, `최소 ${it.minQty}개 이하`])
+      .concat(shop.soon.map(x => [x.it, `약 ${x.s.daysLeft}일 후 소진 예상`]))
+      .concat(shop.out.map(it => [it, "소진"]));
+    if(shopRows.length){
+      html += `<h2>장보기 <span class="print-group-meta">${shopRows.length}개</span></h2>
+        <table><thead><tr><th>물건</th><th>위치</th><th class="num">현재</th><th>사유</th><th>지난 구매</th></tr></thead><tbody>${
+          shopRows.map(r => `<tr><td>${esc(r[0].name)}</td><td>${esc(locPath(r[0]))}</td><td class="num">${num(r[0].quantity)}</td><td>${esc(r[1])}</td><td>${esc(lastPurchaseText(r[0]).replace("지난 구매 ", "") || "-")}</td></tr>`).join("")
+        }</tbody></table>`;
+    }
+    state.locations.forEach(loc => {
+      html += printLocSection(loc.name, loc, act.filter(it => it.locationId === loc.id));
+    });
+    const un = act.filter(it => !findLoc(it.locationId));
+    if(un.length) html += printLocSection("위치 미지정", null, un);
+    if(arch.length){
+      const rows = arch.map(r => `<tr>
+        <td>${formatDate(r.archive.date)}</td>
+        <td>${REASON_LABELS[r.archive.reason]}</td>
+        <td>${esc(r.name)}</td>
+        <td>${esc(r.brand || "-")}</td>
+        <td>${esc(locPath(r))}</td>
+        <td class="num">${num(r.archive.quantity)}</td>
+        <td>${esc(r.archive.note || "-")}</td>
+      </tr>`).join("");
+      html += `<h2>보관함 <span class="print-group-meta">다 쓰거나 버리거나 없어진 물건 ${arch.length}건</span></h2>
+        <table><thead><tr><th>정리일</th><th>구분</th><th>물건</th><th>브랜드</th><th>마지막 위치</th><th class="num">수량</th><th>메모</th></tr></thead><tbody>${rows}</tbody></table>`;
+    }
+    return html;
+  }
+
+  el.pdfBtn.addEventListener("click", () => {
+    if(!state.items.length){ toast("내보낼 데이터가 없어요"); return; }
+    el.printArea.innerHTML = buildPrintReport();
+    const prevTitle = document.title;
+    document.title = "재고목록_" + formatDate(nowISO()).replace(/\./g, "");
+    window.addEventListener("afterprint", function restore(){
+      document.title = prevTitle;
+      window.removeEventListener("afterprint", restore);
+    });
+    window.print();
+  });
+
+  /* =========================================================
+     버전 확인 & 업데이트 팝업
+  ========================================================= */
+  function checkForUpdate(){
+    if(typeof fetch !== "function") return;
+    fetch("version.json?t=" + Date.now(), { cache: "no-store" })
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if(!data || !data.version) return;
+        const remote = String(data.version);
+        if(remote !== APP_VERSION && remote !== readStorage(IGNORED_VERSION_KEY)){
+          el.curVerText.textContent = APP_VERSION;
+          el.newVerText.textContent = remote;
+          openModal(el.updateModalBackdrop);
+        }
+      })
+      .catch(() => { /* 오프라인이거나 버전 파일이 없으면 무시 */ });
+  }
+  el.reloadBtn.addEventListener("click", () => location.reload());
+  el.laterBtn.addEventListener("click", () => {
+    try{ localStorage.setItem(IGNORED_VERSION_KEY, el.newVerText.textContent); }catch(e){}
+    closeModal(el.updateModalBackdrop);
+  });
+  document.addEventListener("visibilitychange", () => {
+    if(document.visibilityState === "visible") checkForUpdate();
+  });
+
+  /* =========================================================
+     시작
+  ========================================================= */
+  el.appVersionLabel.textContent = APP_VERSION;
+  buildStarInput();
+  loadState();
+  loadUiPrefs();
+  loadLastSavedLabel();
+  renderAll();
+  checkForUpdate();
+  setInterval(checkForUpdate, VERSION_CHECK_INTERVAL_MS);
+})();
+</script>
+</body>
+</html>
